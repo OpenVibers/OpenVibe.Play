@@ -36,7 +36,7 @@ a board, your achievements and the API docs.
 | `GET /titles/:title/players/:player/achievements` | `play.player.read` | a player's unlocks in your title |
 
 Tokens are Network service or app tokens for audience `openvibe.play`; the contracts are `play.*` in
-[openvibe-contracts](https://github.com/OpenVibers/OpenVibe.Contracts) (0.172.0).
+[openvibe-contracts](https://github.com/OpenVibers/OpenVibe.Contracts) (0.172.1).
 
 ## Run
 
