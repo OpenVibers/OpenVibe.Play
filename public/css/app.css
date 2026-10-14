@@ -1,0 +1,88 @@
+/* OpenVibe.Play — theme-token driven (openvibe-shared presets). Every page works without JavaScript. */
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg-primary, #0a0f1c); color: var(--text-primary, #e6edf7); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--accent-light, #60a5fa); }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid var(--accent, #3b82f6); outline-offset: 2px; }
+.skip { position: absolute; left: -9999px; }
+.skip:focus { left: 16px; top: 8px; background: var(--bg-card, #131c2e); padding: 8px 12px; z-index: 10; }
+.account-bar { max-width: 1080px; margin: 0 auto; padding: 6px 16px 0; text-align: right; font-size: 14px; color: var(--text-secondary, #96a7c2); }
+.page { max-width: 1080px; margin: 0 auto; padding: 16px 16px 64px; min-height: 60vh; }
+h1 { font-size: 1.8rem; line-height: 1.2; margin: 1rem 0 .6rem; overflow-wrap: anywhere; }
+h2 { font-size: 1.3rem; margin: 1.8rem 0 .5rem; }
+h3 { font-size: 1.08rem; margin: 1.2rem 0 .4rem; }
+.muted { color: var(--text-muted, #7386a3); }
+.small { font-size: .85rem; }
+.crumbs { font-size: .9rem; color: var(--text-muted, #7386a3); margin: 8px 0; overflow-wrap: anywhere; }
+code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .88em; }
+code { overflow-wrap: anywhere; }
+pre { background: var(--bg-secondary, #0f1729); border: 1px solid var(--border, #1f2d47); border-radius: 8px; padding: 10px 12px; overflow-x: auto; white-space: pre; }
+pre code { overflow-wrap: normal; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+th, td { text-align: left; vertical-align: top; padding: 7px 9px; border-bottom: 1px solid var(--border, #1f2d47); }
+th { color: var(--text-secondary, #96a7c2); font-weight: 600; }
+.badge { display: inline-block; font-size: .75rem; padding: 0 8px; border-radius: 999px; border: 1px solid var(--border-light, #2c3d5c); white-space: nowrap; line-height: 1.6; }
+.badge.ok { border-color: var(--success, #22c55e); color: var(--success, #22c55e); }
+.badge.info { border-color: var(--info, #38bdf8); color: var(--info, #38bdf8); }
+.badge.warn { border-color: var(--warning, #f59e0b); color: var(--warning, #f59e0b); }
+.badge.bad { border-color: var(--error, #ef4444); color: var(--error, #ef4444); }
+.notice { border-left: 3px solid var(--info, #38bdf8); padding: 8px 12px; margin: 12px 0; background: var(--bg-card, #131c2e); border-radius: 0 8px 8px 0; }
+.notice.ok { border-left-color: var(--success, #22c55e); }
+.notice.warn { border-left-color: var(--warning, #f59e0b); }
+.notice.bad { border-left-color: var(--error, #ef4444); }
+button { font: inherit; cursor: pointer; }
+form.inline { display: inline; }
+.prose { max-width: 820px; overflow-wrap: anywhere; }
+.prose table { margin: .6rem 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+/* The home page's showcase sections (openvibe-shared/showcase.css) sit inside .page, which has its own gutter. */
+.page .sc-hero, .page .sc-sec, .page .sc-cta { padding-left: 0; padding-right: 0; }
+.page .sc-ic .ov-icon { --ovi-size: 28px !important; }
+button.sc-btn { background: transparent; }
+button.sc-btn.sc-primary { border: 0; }
+.lede { color: var(--text-secondary, #96a7c2); max-width: 72ch; }
+
+/* ── OpenVibe.Play ─────────────────────────────────────────────── */
+.pl-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.pl-lede { color: var(--text-secondary, #96a7c2); max-width: 70ch; font-size: 1.05rem; }
+.pl-muted, .pl-meta { color: var(--text-secondary, #96a7c2); }
+.pl-meta { font-size: 0.875rem; }
+.pl-empty { color: var(--text-secondary, #96a7c2); padding: 14px 16px; border: 1px dashed var(--border, #1f2d47); border-radius: 10px; }
+.pl-crumbs { font-size: 0.875rem; color: var(--text-secondary, #96a7c2); margin: 0 0 4px; }
+.pl-crumbs a { color: inherit; }
+.pl-button { display: inline-block; padding: 9px 16px; border-radius: 10px; font-weight: 600; text-decoration: none;
+  background: var(--accent-strong, #1d4ed8); color: var(--on-accent-strong, #fff); }
+.pl-button:hover { filter: brightness(1.08); }
+
+.pl-titles { margin: 32px 0; }
+.pl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+.pl-card { border: 1px solid var(--border, #1f2d47); border-radius: 14px; padding: 18px 18px 8px; background: var(--bg-card, #131c2e); }
+.pl-card h3 { margin: 0 0 4px; font-size: 1.25rem; }
+.pl-card h3 a { color: var(--text-primary, #e6edf7); text-decoration: none; }
+.pl-card h3 a:hover { text-decoration: underline; }
+.pl-card h4 { margin: 14px 0 6px; font-size: 0.95rem; color: var(--text-secondary, #96a7c2); font-weight: 600; }
+
+.pl-board { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.pl-board th { text-align: left; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary, #96a7c2); font-weight: 600; }
+.pl-board th, .pl-board td { padding: 8px 10px; border-bottom: 1px solid var(--border, #1f2d47); }
+.pl-board tbody tr:last-child td { border-bottom: 0; }
+.pl-board .pl-n { text-align: right; }
+.pl-board .pl-rank { width: 3.5ch; color: var(--text-secondary, #96a7c2); }
+.pl-board tbody tr:nth-child(-n+3) .pl-rank { color: var(--accent, #3b82f6); font-weight: 700; }
+.pl-board-compact th, .pl-board-compact td { padding: 5px 6px; font-size: 0.925rem; }
+.pl-guest { font-size: 0.72rem; color: var(--text-secondary, #96a7c2); border: 1px solid var(--border, #1f2d47); border-radius: 999px; padding: 0 6px; margin-left: 4px; vertical-align: 1px; }
+
+.pl-ach { list-style: none; padding: 0; margin: 12px 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 10px; }
+.pl-ach li { border: 1px solid var(--border, #1f2d47); border-radius: 12px; padding: 12px 14px; background: var(--bg-card, #131c2e); display: flex; flex-direction: column; gap: 4px; }
+.pl-ach-name { font-weight: 700; color: var(--text-primary, #e6edf7); }
+.pl-ach-desc { color: var(--text-secondary, #96a7c2); font-size: 0.925rem; }
+.pl-ach-meta { font-size: 0.8rem; color: var(--text-secondary, #96a7c2); margin-top: auto; }
+.pl-ach-hidden { border-style: dashed; }
+.pl-ach-hidden .pl-ach-name { font-style: italic; font-weight: 600; color: var(--text-secondary, #96a7c2); }
+
+.pl-tabs { display: flex; gap: 6px; margin: 14px 0; }
+.pl-tabs a, .pl-tabs span { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border, #1f2d47); text-decoration: none; font-size: 0.9rem; }
+.pl-tabs span[aria-current] { background: var(--accent-strong, #1d4ed8); color: var(--on-accent-strong, #fff); border-color: transparent; font-weight: 600; }
+.pl-pages { display: flex; gap: 14px; align-items: center; justify-content: center; margin: 18px 0; color: var(--text-secondary, #96a7c2); }
