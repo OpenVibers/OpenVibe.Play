@@ -8,6 +8,8 @@
  *   recordScores(owner, titleId, post)     { board, ref, entries: [{ player, name, score }], at? } → { recorded }
  *   unlock(owner, titleId, post)           { player, achievements: [id…], at? } → { unlocked: [newly unlocked ids] }
  *   adopt(owner, titleId, guest, person)   move a guest's unlocks and scores to the person who signed in
+ *   mergeSubject({ mergeId, from, into })  network.subject.merged: the folded account's rows, in every title, become the
+ *                                          survivor's (once per merge)
  *   board(titleId, boardId, { period, page })  ranked entries: name and score, never a player id
  *   title(id) / titles()                   the public definitions, with how many players unlocked each achievement
  *   playerAchievements(player, { titleId })    a player's unlocks across titles (or in one)
@@ -158,16 +160,33 @@ function createPlay({ s }) {
         await ownTitle(owner, titleId);
         if (!/^guest:/.test(player(guest))) fail(400, 'play.bad_player', 'only a guest is adopted');
         if (!/^usr_/.test(player(person))) fail(400, 'play.bad_player', 'a guest is adopted by a person (usr_…)');
+        return await s.tx(() => moveRows(titleId, guest, person));
+    }
+
+    /** One player's unlocks (the earliest time wins) and scores (a round both posted keeps the survivor's) become
+     *  another's: in one title, or in every title when titleId is null. Runs inside the caller's transaction. */
+    async function moveRows(titleId, from, into) {
+        const all = titleId === null;
+        const move = all ? [from, into] : [from, into, titleId];
+        const drop = all ? [from] : [from, titleId];
+        const unlocks = await db.exec(`INSERT INTO play_unlocks (title_id, achievement_id, player, unlocked_at)
+            SELECT title_id, achievement_id, $2, unlocked_at FROM play_unlocks WHERE player = $1${all ? '' : ' AND title_id = $3'}
+            ON CONFLICT (title_id, achievement_id, player) DO UPDATE SET unlocked_at = LEAST(play_unlocks.unlocked_at, excluded.unlocked_at)`, move);
+        await db.exec(`DELETE FROM play_unlocks WHERE player = $1${all ? '' : ' AND title_id = $2'}`, drop);
+        const scores = await db.exec(`INSERT INTO play_scores (title_id, board_id, ref, player, player_name, score, at)
+            SELECT title_id, board_id, ref, $2, player_name, score, at FROM play_scores WHERE player = $1${all ? '' : ' AND title_id = $3'}
+            ON CONFLICT (title_id, board_id, ref, player) DO NOTHING`, move);
+        await db.exec(`DELETE FROM play_scores WHERE player = $1${all ? '' : ' AND title_id = $2'}`, drop);
+        return { unlocks, scores };
+    }
+
+    async function mergeSubject({ mergeId, from, into }) {
         return await s.tx(async () => {
-            const unlocks = await db.exec(`INSERT INTO play_unlocks (title_id, achievement_id, player, unlocked_at)
-                SELECT title_id, achievement_id, $3, unlocked_at FROM play_unlocks WHERE title_id = $1 AND player = $2
-                ON CONFLICT (title_id, achievement_id, player) DO UPDATE SET unlocked_at = LEAST(play_unlocks.unlocked_at, excluded.unlocked_at)`, [titleId, guest, person]);
-            await db.exec('DELETE FROM play_unlocks WHERE title_id = $1 AND player = $2', [titleId, guest]);
-            const scores = await db.exec(`INSERT INTO play_scores (title_id, board_id, ref, player, player_name, score, at)
-                SELECT title_id, board_id, ref, $3, player_name, score, at FROM play_scores WHERE title_id = $1 AND player = $2
-                ON CONFLICT (title_id, board_id, ref, player) DO NOTHING`, [titleId, guest, person]);
-            await db.exec('DELETE FROM play_scores WHERE title_id = $1 AND player = $2', [titleId, guest]);
-            return { unlocks, scores };
+            if (await db.maybe('SELECT 1 FROM play_subject_merges WHERE merge_id = $1', [mergeId])) return { already: true, unlocks: 0, scores: 0 };
+            const moved = await moveRows(null, from, into);
+            await db.exec('INSERT INTO play_subject_merges (merge_id, from_subject, into_subject, unlocks, scores, merged_at) VALUES ($1, $2, $3, $4, $5, $6)',
+                [mergeId, from, into, moved.unlocks, moved.scores, s.now()]);
+            return { already: false, ...moved };
         });
     }
 
@@ -236,7 +255,7 @@ function createPlay({ s }) {
         return [...by.values()];
     }
 
-    return { define, recordScores, unlock, adopt, board, title, titles, playerAchievements, ownTitle };
+    return { define, recordScores, unlock, adopt, mergeSubject, board, title, titles, playerAchievements, ownTitle };
 }
 
 module.exports = { createPlay, PlayError, PLAYER_RE, TITLE_RE, weekStart, PER_PAGE };

@@ -13,7 +13,8 @@ its boards. The rules of each game stay in the game; Play keeps the record and a
 - **Leaderboards** of two kinds: `best` ranks each player's best score, `sum` the total of theirs. Each reads this week
   (from Monday 00:00 UTC) or all time, 25 a page. A tie goes to whoever got there first.
 - **Players** are people (`usr_…`) or guests a game names (`guest:<opaque>`). When a guest signs in, the game adopts
-  them and their unlocks and scores become the person's.
+  them and their unlocks and scores become the person's. When two OpenVibe accounts are merged (`network.subject.merged`),
+  the folded account's unlocks and scores become the survivor's in every title.
 - **Idempotent writes.** A round's scores carry a `ref`; posting it again changes nothing. An unlock answers only the
   achievements that were new.
 - **Personal data.** Only people's rows are: they are in the person's account export and erased with their account
@@ -55,9 +56,10 @@ wildcard certificate, deployed with `sudo ovhost deploy play`.
 ```
 server/play/store.js         titles, achievements, boards, scores, unlocks, adoption
 server/play/account-data.js  account export and deletion (ADR-033)
+server/play/subject-merge.js account merges (ADR-029)
 server/http/api.js           /api/v1
 server/http/pages.js         the pages; discovery.js robots.txt, sitemap.xml, llms.txt
-migrations/0001_initial.sql  the schema
+migrations/                  the schema (0001 the store, 0002 the merges applied)
 ```
 
 ## License
