@@ -78,6 +78,25 @@ async function startNetworkStub() {
             assert.strictEqual((await deliver(event)).json.outcome, 'unchanged');
         });
 
+        await check('a merge folds bob into carol in every title, once; a payload that is not one is ignored', async () => {
+            const carol = 'usr_01JZ0000000000000000000CA1';
+            await play.recordScores('service:games', 'salvage-rush', { board: 'best', ref: 'r2', entries: [
+                { player: bob.subject, name: 'Bob', score: 350 }, { player: carol, name: 'Carol', score: 500 },
+            ] });
+            await play.unlock('service:games', 'salvage-rush', { player: carol, achievements: ['first-haul'] });
+            const event = ev('evt_01JZ0000000000000000000M01', 'network.subject.merged', { merge_id: 'mrg_01JZ0000000000000000000MG1', from: bob.subject, into: carol });
+            const r = await deliver(event);
+            assert.deepStrictEqual([r.status, r.json && r.json.outcome], [200, 'merged'], JSON.stringify(r.json));
+            assert.strictEqual(await count('SELECT count(*) FROM play_scores WHERE player = $1', [bob.subject]), 0);
+            assert.strictEqual(await count('SELECT count(*) FROM play_unlocks WHERE player = $1', [bob.subject]), 0);
+            assert.strictEqual(await count('SELECT count(*) FROM play_unlocks WHERE player = $1', [carol]), 1, 'one unlock of first-haul: the two accounts\' are one');
+            assert.deepStrictEqual((await t.ctx.s.db.many('SELECT ref, score FROM play_scores WHERE player = $1 ORDER BY ref', [carol])).map((x) => [x.ref, Number(x.score)]),
+                [['r1', 300], ['r2', 500]], 'bob\'s round 1 is carol\'s now; in round 2 both played and carol\'s own score stays');
+            assert.strictEqual((await deliver(event)).json.outcome, 'unchanged');
+            const bad = ev('evt_01JZ0000000000000000000M02', 'network.subject.merged', { merge_id: 'mrg_01JZ0000000000000000000MG2', from: carol, into: carol });
+            assert.strictEqual((await deliver(bad)).json.outcome, 'ignored:payload');
+        });
+
         await check('the route refuses a bad signature and a request that came through a proxy', async () => {
             const event = ev('evt_01JZ0000000000000000000E02', 'network.account.export_requested', { export_id: 'exp_01JZ0000000000000000000EX2', subject: alice.subject });
             assert.strictEqual((await deliver(event, { secret: `whsec_${'mismatch'.repeat(5)}` })).status, 401);

@@ -31,6 +31,7 @@ const { createServiceReadiness } = require('./observability');
 const { createCallerLimits } = require('./http/caller-limits');
 const { createNetworkSender } = require('openvibe-sdk/account-data');
 const { createPlay } = require('./play/store');
+const subjectMerge = require('./play/subject-merge');
 const accountDataLib = require('./play/account-data');
 const { assetVersion, send } = require('./render/layout');
 const { html } = require('./render/html');
@@ -99,8 +100,12 @@ async function createApp(opts = {}) {
 
     // ── OpenVibe.Events → Play (loopback only: nginx answers 404 for /internal/) ──
     // network.account.export_requested and network.account.deleted, answered by openvibe-sdk/account-data's consumer,
-    // which reads the raw body itself (the v2 signature covers it) and refuses a request that came through a proxy.
-    app.post('/internal/events', accountData.consumer({ secrets: config.events.secrets, send: accountSend, log }));
+    // which reads the raw body itself (the v2 signature covers it) and refuses a request that came through a proxy;
+    // network.subject.merged (ADR-029) reaches it as another topic and folds the merged account's rows (subject-merge.js).
+    app.post('/internal/events', accountData.consumer({
+        secrets: config.events.secrets, send: accountSend, log,
+        onEvent: (ev) => subjectMerge.apply(ev, { play, log }),
+    }));
 
     // ── Machine endpoints ───────────────────────────────────
     app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'openvibe-play', version: VERSION }));
