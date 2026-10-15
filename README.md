@@ -35,6 +35,10 @@ game, to the player's account page and to any page that wants a board.
 - Unlocks and scores per player (`play_unlocks`, `play_scores`), guest adoption, and the merges applied
   (`play_subject_merges`).
 - The public pages at play.openvibe.network and the `/api/v1` read and write API.
+- Request telemetry (`telemetry_samples`, `0003_telemetry.sql`): each HTTP request aggregated by route template, method, status class,
+  never by raw URL; `/shared`, static assets, health, readiness and `/metrics` are not counted. `server/app.js` builds the collector,
+  `server/index.js` flushes per key one `http.request` sample plus the active-requests, p95 latency and event-loop-lag gauges each
+  minute and on stop (openvibe-sdk 0.46, `platform.telemetry-sample@1`), and rows older than 14 days are deleted daily.
 
 ## Does not own
 
