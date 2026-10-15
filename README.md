@@ -23,6 +23,67 @@ its boards. The rules of each game stay in the game; Play keeps the record and a
 Every page is server-rendered and readable without JavaScript: the home (every game and this week's leaders), a title,
 a board, your achievements and the API docs.
 
+## Purpose
+
+One record of what players did in OpenVibe games, shared by every game and read anywhere. A game keeps its own rules and
+reports their results; Play stores the achievements unlocked and the scores posted, ranks them, and serves them to the
+game, to the player's account page and to any page that wants a board.
+
+## Owns
+
+- Titles, their achievement definitions and their boards (`play_titles`, `play_achievements`, `play_boards`).
+- Unlocks and scores per player (`play_unlocks`, `play_scores`), guest adoption, and the merges applied
+  (`play_subject_merges`).
+- The public pages at play.openvibe.network and the `/api/v1` read and write API.
+
+## Does not own
+
+- A game's rules, rounds or anti-cheat: the game decides what counts and posts the result. Games' local tables stay in
+  OpenVibe.Games, which posts to Play.
+- People's accounts, names shown elsewhere, or sign-in: OpenVibe.Network. Rewards worn across the network (items) are
+  OpenVibe.Inventory's; OpenCoins are the Network wallet's.
+
+## Depends on
+
+- **OpenVibe.Network:** service and app tokens (audience `openvibe.play`), the JWKS that verifies them, grants for the
+  `play.*` capabilities, and person sign-in for "your achievements".
+- **OpenVibe.Events:** the account subscriptions (export, deletion, `network.subject.merged`), created at boot when
+  `EVENTS_URL`, `PLAY_EVENTS_SECRET` and the client secret are set.
+- **PostgreSQL** (`ov_play`; embedded PGlite in development and tests), Valkey for per-caller limits when configured.
+
+## Capabilities
+
+| Capability | Lets a caller |
+|---|---|
+| `play.title.manage` | register or update its own title (name, url, summary, achievements, boards) |
+| `play.result.write` | post scores and unlocks to its own title, and adopt a guest as a person |
+| `play.player.read` | read a player's unlocks in its own title |
+
+A title belongs to the principal that registered it; another principal's write is refused as if the title did not
+exist. Reads of titles and boards are public.
+
+## Acceptance
+
+Tested in `test/` (`npm test`, every file in its own process on PGlite; `npm run test:pg` on PostgreSQL):
+`play-api.test.js` (titles, owner-only writes, idempotent scores, best and sum boards with the Monday week, guest
+adoption, secret achievements, retired definitions, a person's own achievements, the pages), `account-data.test.js`
+(export, erasure and account merges), the auth, limits, discovery, layout, open-redirect, nginx and security tests, and
+the home page's size budget.
+
+## Security
+
+- Writes need a Network token with the capability, for audience `openvibe.play`; a principal writes only its own titles.
+- Every write is idempotent (`ref` for scores, set semantics for unlocks) and limited per calling principal
+  (`http/caller-limits.js`), sign-in routes per address.
+- Boards show a name and a score, never a player id; guests are opaque ids chosen by the game.
+- Report vulnerabilities as [SECURITY.md](SECURITY.md) says.
+
+## Deploy
+
+`sudo ovhost deploy play` on the host: unit `openvibe-play.service` on 127.0.0.1:5040, env `/etc/openvibe/play.env`,
+database `ov_play`, nginx vhost `deploy/nginx/play.openvibe.network.conf` on the openvibe.network wildcard certificate.
+Migrations run at boot.
+
 ## API (`/api/v1`, problem+json errors)
 
 | Route | Who | What |
