@@ -128,7 +128,7 @@ migrations/                  the schema (0001 the store, 0002 the merges applied
 AGPL-3.0. Part of the [OpenVibe network](https://openvibe.network).
 
 <!-- versions:start -->
-- openvibe-contracts: v0.172.1
+- openvibe-contracts: v0.186.0
 - openvibe-sdk: v0.44.0
 - openvibe-shared: v4.2.0
 <!-- versions:end -->
