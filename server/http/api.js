@@ -13,6 +13,11 @@
  *   POST /titles/:title/unlocks                           play.result.write  unlock achievements for a player (idempotent)
  *   POST /titles/:title/players/:guest/adopt              play.result.write  a guest signed in: their rows become the person's
  *   GET  /titles/:title/players/:player/achievements      play.player.read   a player's unlocks in a title the caller manages
+ *   GET  /titles/:title/players/:player/saves             play.player.read   a player's cloud save slots (without the data)
+ *   GET  /titles/:title/players/:player/saves/:slot       play.player.read   one slot: { slot, version, data, … }
+ *   PUT  /titles/:title/players/:player/saves/:slot       play.result.write  write it ({ data, version? }: a stale version is 409)
+ *   DELETE /titles/:title/players/:player/saves/:slot     play.result.write  delete it
+ *   GET  /me/saves, DELETE /me/saves/:title/:slot         a person           their own slots in every title; delete one
  *
  * Writes come from the principal that registered the title (a game's service token); another one is told the title
  * does not exist. Public reads answer every origin without credentials. A refusal is RFC 9457 problem+json.
@@ -26,7 +31,7 @@ function createApi(ctx) {
     const { config, principal, limits, play } = ctx;
     const r = asyncRouter();
 
-    r.use(express.json({ limit: '128kb' }));
+    r.use(express.json({ limit: '160kb' }));   // a save is at most 64 KB of JSON (store.js MAX_SAVE_BYTES), with room for the envelope
     r.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
     r.use(principal.middleware);
 
@@ -62,6 +67,21 @@ function createApi(ctx) {
         return res.json({ titles: await play.playerAchievements(req.principal.requester.slice(5)) });
     }));
 
+    const signedIn = (req, res) => {
+        if (req.principal.kind === 'user') return true;
+        http.sendProblem(res, 401, 'token.required', { detail: 'Sign in at play.openvibe.network, or send your Network token.', ctx: req.ov });
+        return false;
+    };
+    r.get('/me/saves', reads, wrap(async (req, res) => {
+        if (!signedIn(req, res)) return undefined;
+        return res.json({ saves: await play.mySaves(req.principal.requester.slice(5)) });
+    }));
+    r.delete('/me/saves/:title/:slot', limits.budget('play.write'), wrap(async (req, res) => {
+        if (!signedIn(req, res)) return undefined;
+        const gone = await play.deleteMySave(req.principal.requester.slice(5), req.params.title, req.params.slot);
+        return gone ? res.status(204).end() : http.sendProblem(res, 404, 'play.no_save', { detail: 'no save in that slot', ctx: req.ov });
+    }));
+
     // ── A title's own principal ───────────────────────────
     r.put('/titles/:title', principal.requireCapability('play.title.manage'), titleOwner, limits.budget('play.define'), wrap(async (req, res) => {
         const out = await play.define(req.principal.requester, req.params.title, req.body || {});
@@ -80,6 +100,23 @@ function createApi(ctx) {
         await play.ownTitle(req.principal.requester, req.params.title);
         const [t] = await play.playerAchievements(req.params.player, { titleId: req.params.title });
         res.json({ title: req.params.title, player: req.params.player, achievements: t ? t.achievements : [] });
+    }));
+
+    // ── Cloud saves (a title's own principal, for one player) ──
+    const savesOf = (req) => [req.principal.requester, req.params.title, req.params.player];
+    r.get('/titles/:title/players/:player/saves', principal.requireCapability('play.player.read'), titleOwner, reads, wrap(async (req, res) => {
+        res.json({ title: req.params.title, player: req.params.player, saves: await play.listSaves(...savesOf(req)) });
+    }));
+    r.get('/titles/:title/players/:player/saves/:slot', principal.requireCapability('play.player.read'), titleOwner, reads, wrap(async (req, res) => {
+        res.json(await play.getSave(...savesOf(req), req.params.slot));
+    }));
+    r.put('/titles/:title/players/:player/saves/:slot', principal.requireCapability('play.result.write'), titleOwner, limits.budget('play.write'), wrap(async (req, res) => {
+        const b = req.body || {};
+        res.json(await play.putSave(...savesOf(req), req.params.slot, { data: b.data, version: b.version }));
+    }));
+    r.delete('/titles/:title/players/:player/saves/:slot', principal.requireCapability('play.result.write'), titleOwner, limits.budget('play.write'), wrap(async (req, res) => {
+        const gone = await play.deleteSave(...savesOf(req), req.params.slot);
+        return gone ? res.status(204).end() : http.sendProblem(res, 404, 'play.no_save', { detail: 'no save in that slot', ctx: req.ov });
     }));
 
     return r;

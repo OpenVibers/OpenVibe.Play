@@ -136,13 +136,14 @@ ${b.pages > 1 ? html`<nav class="pl-pages" aria-label="Pages">${pageNo > 1 ? htm
         if (!me) {
             return page(req, res, { title: 'Your achievements', body: html`<h1>Your achievements</h1><p>Sign in with your OpenVibe account to see what you have unlocked in every game.</p><p><a class="pl-button" href="/auth/login?next=%2Fme">Sign in with OpenVibe</a></p>` });
         }
-        const titles = await play.playerAchievements(me);
+        const [titles, saves] = await Promise.all([play.playerAchievements(me), play.mySaves(me)]);
         res.set('Cache-Control', cache.htmlHeaders({ private: true }));
         page(req, res, {
             title: 'Your achievements',
             body: html`<h1>Your achievements</h1>
 ${titles.length ? titles.map((t) => html`<section><h2><a href="/t/${t.title}">${t.name}</a></h2><p class="pl-muted">${plural(t.achievements.length, 'achievement', 'achievements')}</p>${achievementList(t.achievements)}</section>`)
-        : html`<p class="pl-empty">Nothing yet. <a href="https://openvibe.games/">Play a game</a> signed in, and what you unlock shows here.</p>`}`,
+        : html`<p class="pl-empty">Nothing yet. <a href="https://openvibe.games/">Play a game</a> signed in, and what you unlock shows here.</p>`}
+${saves.length ? html`<section><h2>Your saves</h2><p class="pl-muted">What games keep for you in the cloud, so your progress follows you to any device.</p><ul>${saves.map((x) => html`<li><a href="/t/${x.title}">${x.title_name}</a>: <code>${x.slot}</code> <span class="pl-muted">· ${Math.max(1, Math.round(x.size / 1024))} KB · saved ${x.updated_at.slice(0, 10)}</span></li>`)}</ul></section>` : ''}`,
         });
     });
 
@@ -167,6 +168,13 @@ ${titles.length ? titles.map((t) => html`<section><h2><a href="/t/${t.title}">${
 <li><code>POST /titles/:title/unlocks</code> (<code>play.result.write</code>): <code>{ player, achievements: [id] }</code>; answers the ones that were new.</li>
 <li><code>POST /titles/:title/players/:guest/adopt</code> (<code>play.result.write</code>): <code>{ person: "usr_…" }</code> when a guest signs in: their unlocks and scores become the person's.</li>
 <li><code>GET /titles/:title/players/:player/achievements</code> (<code>play.player.read</code>): a player's unlocks in your game.</li>
+</ul>
+<h2>Cloud saves</h2>
+<p>A player's progress follows them to any device: up to 8 slots per player in your game, each any JSON value of at most 64 KB. Slots move with a guest who signs in (the newer save wins a clash) and with an account merge.</p>
+<ul>
+<li><code>PUT /titles/:title/players/:player/saves/:slot</code> (<code>play.result.write</code>): <code>{ data, version }</code>. <code>version</code> is the version you read (0 for a new slot): if the slot moved on since, the write is refused with <code>409 play.save_conflict</code>, so two devices never overwrite each other silently. Leave it out to overwrite.</li>
+<li><code>GET /titles/:title/players/:player/saves/:slot</code> (<code>play.player.read</code>): <code>{ slot, version, data, created_at, updated_at }</code>; <code>GET …/saves</code> lists the slots without their data; <code>DELETE …/saves/:slot</code> (<code>play.result.write</code>).</li>
+<li><code>GET /me/saves</code> and <code>DELETE /me/saves/:title/:slot</code>: with a person's own Network token, their slots in every game.</li>
 </ul>
 <p>A <code>player</code> is a person's OpenVibe subject (<code>usr_…</code>) or a guest your game names, <code>guest:</code> followed by 8 to 128 letters, digits, <code>_</code> or <code>-</code>. Only people's rows are personal data: they are in the person's account export and erased with their account.</p>`,
     }));

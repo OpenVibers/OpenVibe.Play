@@ -90,7 +90,7 @@ const DAY = 86_400_000;
             const P3 = 'usr_01JABCDEFGHJKMNPQRSTVWXYZ2';
             await t.get('/api/v1/titles/salvage-rush/unlocks', { ...games, json: { player: P3, achievements: ['first-haul'] } });
             const adopt = await t.get(`/api/v1/titles/salvage-rush/players/${encodeURIComponent(G1)}/adopt`, { ...games, json: { person: P3 } });
-            assert.deepStrictEqual(adopt.json(), { unlocks: 1, scores: 1 });
+            assert.deepStrictEqual(adopt.json(), { unlocks: 1, scores: 1, saves: 0 });
             const board = (await t.get('/api/v1/titles/salvage-rush/boards/best')).json();
             assert.deepStrictEqual(board.entries.find((e) => e.name === 'Guest 7'), { rank: 3, name: 'Guest 7', score: 450, signed_in: true }, 'the guest\'s score is the person\'s now');
             const read = (await t.get(`/api/v1/titles/salvage-rush/players/${P3}/achievements`, games)).json();

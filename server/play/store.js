@@ -8,6 +8,8 @@
  *   recordScores(owner, titleId, post)     { board, ref, entries: [{ player, name, score }], at? } → { recorded }
  *   unlock(owner, titleId, post)           { player, achievements: [id…], at? } → { unlocked: [newly unlocked ids] }
  *   adopt(owner, titleId, guest, person)   move a guest's unlocks and scores to the person who signed in
+ *   putSave / getSave / listSaves / deleteSave (owner, titleId, player, slot…)   a player's cloud save slots in a title
+ *   mySaves(person) / deleteMySave(person, titleId, slot)                        a person's own slots, every title
  *   mergeSubject({ mergeId, from, into })  network.subject.merged: the folded account's rows, in every title, become the
  *                                          survivor's (once per merge)
  *   board(titleId, boardId, { period, page })  ranked entries: name and score, never a player id
@@ -18,6 +20,9 @@
  * principal is told the title does not exist. A player is a person (usr_…) or a guest the title names (guest:<opaque>).
  */
 const PLAYER_RE = /^(usr_[0-9A-HJKMNP-TV-Z]{26}|guest:[A-Za-z0-9_-]{8,128})$/;
+const SLOT_RE = /^[a-z0-9][a-z0-9_-]{0,31}$/;
+const MAX_SLOTS = 8;
+const MAX_SAVE_BYTES = 65536;
 const TITLE_RE = /^[a-z0-9][a-z0-9-]{1,39}$/;
 const DEF_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 const PER_PAGE = 25;
@@ -177,7 +182,16 @@ function createPlay({ s }) {
             SELECT title_id, board_id, ref, $2, player_name, score, at FROM play_scores WHERE player = $1${all ? '' : ' AND title_id = $3'}
             ON CONFLICT (title_id, board_id, ref, player) DO NOTHING`, move);
         await db.exec(`DELETE FROM play_scores WHERE player = $1${all ? '' : ' AND title_id = $2'}`, drop);
-        return { unlocks, scores };
+        // Save slots: the newer of a clashing pair wins (its version moves past both).
+        const saves = await db.exec(`INSERT INTO play_saves (title_id, player, slot, data, size, version, created_at, updated_at)
+            SELECT title_id, $2, slot, data, size, version, created_at, updated_at FROM play_saves WHERE player = $1${all ? '' : ' AND title_id = $3'}
+            ON CONFLICT (title_id, player, slot) DO UPDATE SET
+                data = CASE WHEN excluded.updated_at > play_saves.updated_at THEN excluded.data ELSE play_saves.data END,
+                size = CASE WHEN excluded.updated_at > play_saves.updated_at THEN excluded.size ELSE play_saves.size END,
+                version = GREATEST(play_saves.version, excluded.version) + 1,
+                updated_at = GREATEST(play_saves.updated_at, excluded.updated_at)`, move);
+        await db.exec(`DELETE FROM play_saves WHERE player = $1${all ? '' : ' AND title_id = $2'}`, drop);
+        return { unlocks, scores, saves };
     }
 
     async function mergeSubject({ mergeId, from, into }) {
@@ -255,7 +269,61 @@ function createPlay({ s }) {
         return [...by.values()];
     }
 
-    return { define, recordScores, unlock, adopt, mergeSubject, board, title, titles, playerAchievements, ownTitle };
+    // ── cloud saves ──
+    const slotOf = (v) => { if (!SLOT_RE.test(String(v || ''))) fail(400, 'play.bad_slot', 'a slot is 1 to 32 of a-z 0-9 _ - (starting with a letter or digit)'); return String(v); };
+    const saveView = (r, withData) => ({ slot: r.slot, version: Number(r.version), size: Number(r.size), created_at: new Date(Number(r.created_at)).toISOString(), updated_at: new Date(Number(r.updated_at)).toISOString(), ...(withData ? { data: r.data } : {}) });
+
+    /** Writes a slot. `version` (optional) is the version the writer read: a stale one is refused (409), a new slot takes 0. */
+    async function putSave(owner, titleId, playerId, slot, { data, version } = {}) {
+        await ownTitle(owner, titleId);
+        player(playerId); slotOf(slot);
+        if (data === undefined) fail(400, 'play.bad_save', 'data is the save, any JSON value');
+        const json = JSON.stringify(data);
+        const size = Buffer.byteLength(json, 'utf8');
+        if (size > MAX_SAVE_BYTES) fail(413, 'play.save_too_large', `a save is at most ${MAX_SAVE_BYTES} bytes of JSON (this one is ${size})`);
+        if (version !== undefined && version !== null && (!Number.isSafeInteger(version) || version < 0)) fail(400, 'play.bad_version', 'version is the version you read (0 for a new slot)');
+        return await s.tx(async () => {
+            const cur = await db.maybe('SELECT * FROM play_saves WHERE title_id = $1 AND player = $2 AND slot = $3 FOR UPDATE', [titleId, playerId, slot]);
+            if (version !== undefined && version !== null && Number(cur ? cur.version : 0) !== version) {
+                fail(409, 'play.save_conflict', `the slot is at version ${cur ? cur.version : 0}, not ${version}: read it again and merge`);
+            }
+            if (!cur) {
+                const n = Number((await db.maybe('SELECT COUNT(*)::int AS n FROM play_saves WHERE title_id = $1 AND player = $2', [titleId, playerId])).n);
+                if (n >= MAX_SLOTS) fail(409, 'play.too_many_slots', `a player has at most ${MAX_SLOTS} slots in a title`);
+                const now = s.now();
+                await db.exec('INSERT INTO play_saves (title_id, player, slot, data, size, version, created_at, updated_at) VALUES ($1, $2, $3, $4::jsonb, $5, 1, $6, $6)', [titleId, playerId, slot, json, size, now]);
+            } else {
+                await db.exec('UPDATE play_saves SET data = $4::jsonb, size = $5, version = version + 1, updated_at = $6 WHERE title_id = $1 AND player = $2 AND slot = $3', [titleId, playerId, slot, json, size, s.now()]);
+            }
+            return saveView(await db.one('SELECT * FROM play_saves WHERE title_id = $1 AND player = $2 AND slot = $3', [titleId, playerId, slot]), false);
+        });
+    }
+    async function getSave(owner, titleId, playerId, slot) {
+        await ownTitle(owner, titleId);
+        const r = await db.maybe('SELECT * FROM play_saves WHERE title_id = $1 AND player = $2 AND slot = $3', [titleId, player(playerId), slotOf(slot)]);
+        if (!r) fail(404, 'play.no_save', 'no save in that slot');
+        return saveView(r, true);
+    }
+    async function listSaves(owner, titleId, playerId) {
+        await ownTitle(owner, titleId);
+        return (await db.many('SELECT * FROM play_saves WHERE title_id = $1 AND player = $2 ORDER BY slot', [titleId, player(playerId)])).map((r) => saveView(r, false));
+    }
+    async function deleteSave(owner, titleId, playerId, slot) {
+        await ownTitle(owner, titleId);
+        return (await db.exec('DELETE FROM play_saves WHERE title_id = $1 AND player = $2 AND slot = $3', [titleId, player(playerId), slotOf(slot)])) > 0;
+    }
+    /** A person's own slots in every title (without the data), newest first. */
+    async function mySaves(person) {
+        return (await db.many(`SELECT v.*, t.name AS title_name FROM play_saves v JOIN play_titles t ON t.id = v.title_id
+            WHERE v.player = $1 ORDER BY v.updated_at DESC LIMIT 200`, [player(person)])).map((r) => ({ title: r.title_id, title_name: r.title_name, ...saveView(r, false) }));
+    }
+    async function deleteMySave(person, titleId, slot) {
+        if (!TITLE_RE.test(String(titleId || ''))) fail(404, 'play.unknown_title', 'no such title');
+        return (await db.exec('DELETE FROM play_saves WHERE title_id = $1 AND player = $2 AND slot = $3', [titleId, player(person), slotOf(slot)])) > 0;
+    }
+
+    return { define, recordScores, unlock, adopt, mergeSubject, board, title, titles, playerAchievements, ownTitle,
+        putSave, getSave, listSaves, deleteSave, mySaves, deleteMySave };
 }
 
-module.exports = { createPlay, PlayError, PLAYER_RE, TITLE_RE, weekStart, PER_PAGE };
+module.exports = { createPlay, PlayError, PLAYER_RE, TITLE_RE, SLOT_RE, MAX_SLOTS, MAX_SAVE_BYTES, weekStart, PER_PAGE };
