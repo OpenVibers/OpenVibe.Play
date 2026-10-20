@@ -26,7 +26,7 @@ const { boot, check, done } = require('./helpers/boot');
         await check('the sitemap lists the pages, the game and both periods of its board', async () => {
             const r = await t.get('/sitemap.xml');
             assert.match(r.headers.get('content-type'), /xml/);
-            for (const loc of ['/', '/docs', '/updates', '/t/scraplandia', '/t/scraplandia/b/haul?period=week', '/t/scraplandia/b/haul?period=all']) {
+            for (const loc of ['/', '/docs', '/updates', '/t/scraplandia', '/t/scraplandia/b/haul?period=week', '/t/scraplandia/b/haul']) {
                 assert.ok(r.text.includes(`<loc>https://play.openvibe.network${loc.replace('&', '&amp;')}</loc>`), loc);
             }
         });

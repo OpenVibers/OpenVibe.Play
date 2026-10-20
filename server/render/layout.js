@@ -46,7 +46,8 @@ let RELEASE = 'dev';
 function setRelease(id) { if (id) RELEASE = String(id); }
 
 /**
- * o: title, description, body (html), viewer, config, path, index (default false), scripts [rel],
+ * o: title, description, body (html), viewer, config, path, canonicalPath (default: the path without its query),
+ *    index (default false), scripts [rel],
  *    crumbs [{ label, href }], jsonLd [nodes] (serialised by openvibe-shared/seo), styles [openvibe-shared stylesheet names]
  */
 function renderPage(o) {
@@ -54,7 +55,8 @@ function renderPage(o) {
     const signedIn = viewer.kind === 'user';
     const pathNow = o.path || '/';
     const loginNext = encodeURIComponent(pathNow);
-    const canonical = `${o.config.baseUrl}${pathNow.split('?')[0]}`;
+    // The path without its query, unless the page names its own (`canonicalPath`: a query that is a different page).
+    const canonical = `${o.config.baseUrl}${o.canonicalPath || pathNow.split('?')[0]}`;
     const nav = {
         service: 'play',
         apiBase: NETWORK_URL,

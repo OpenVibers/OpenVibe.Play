@@ -53,7 +53,8 @@ function createDiscoveryRoutes(ctx) {
     const site = String(config.baseUrl).replace(/\/+$/, '');
     const abs = (p) => `${site}${p}`;
     const TEXT = cache.htmlHeaders({ maxAge: 3600 });
-    const boardPath = (t, b, period) => `/t/${t}/b/${b}?period=${period}`;
+    // All time is the board's plain address, this week ?period=week (each page's own canonical).
+    const boardPath = (t, b, period) => `/t/${t}/b/${b}${period === 'week' ? '?period=week' : ''}`;
 
     r.get('/robots.txt', (_req, res) => {
         res.type('text/plain').set('Cache-Control', TEXT).send(

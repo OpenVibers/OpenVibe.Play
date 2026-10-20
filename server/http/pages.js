@@ -103,7 +103,7 @@ ${raw(showcase.steps({
 <h1>${t.name}</h1>
 ${t.summary ? html`<p class="pl-lede">${t.summary}</p>` : ''}
 ${t.url ? html`<p><a class="pl-button" href="${t.url}">Play ${t.name}</a></p>` : ''}
-${boards.length ? html`<section aria-labelledby="pl-boards-h"><h2 id="pl-boards-h">Leaderboards this week</h2>${boards.map((b) => html`<h3>${b.name}</h3>${boardTable({ ...b, entries: b.entries.slice(0, 10) })}<p><a href="/t/${t.id}/b/${b.board}?period=week">This week</a> · <a href="/t/${t.id}/b/${b.board}?period=all">All time</a></p>`)}</section>` : ''}
+${boards.length ? html`<section aria-labelledby="pl-boards-h"><h2 id="pl-boards-h">Leaderboards this week</h2>${boards.map((b) => html`<h3>${b.name}</h3>${boardTable({ ...b, entries: b.entries.slice(0, 10) })}<p><a href="/t/${t.id}/b/${b.board}?period=week">This week</a> · <a href="/t/${t.id}/b/${b.board}">All time</a></p>`)}</section>` : ''}
 <section aria-labelledby="pl-ach-h"><h2 id="pl-ach-h">Achievements</h2><p class="pl-muted">${plural(t.players, 'player has', 'players have')} unlocked at least one.</p>${achievementList(t.achievements, { players: t.players })}</section>`,
         });
     });
@@ -117,8 +117,14 @@ ${boards.length ? html`<section aria-labelledby="pl-boards-h"><h2 id="pl-boards-
             if (err instanceof PlayError) return notFound(req, res, 'No board here.');
             throw err;
         }
-        const link = (o) => `/t/${b.title}/b/${b.board}?period=${o.period || period}${(o.page || 1) > 1 ? `&page=${o.page}` : ''}`;
+        // All time is the board's plain address and this week is ?period=week: two pages, each its own canonical (the
+        // week board named the all-time one while the sitemap listed both).
+        const link = (o) => {
+            const q = [(o.period || period) === 'week' ? 'period=week' : null, (o.page || 1) > 1 ? `page=${o.page}` : null].filter(Boolean);
+            return `/t/${b.title}/b/${b.board}${q.length ? `?${q.join('&')}` : ''}`;
+        };
         page(req, res, {
+            canonicalPath: link({ page: pageNo }),
             index: true, cache: PUBLIC_CACHE, title: `${b.name}, ${period === 'week' ? 'this week' : 'all time'} · ${b.title_name}`,
             description: `The ${b.name} leaderboard of ${b.title_name}, ${period === 'week' ? 'this week' : 'all time'}: ${b.kind === 'sum' ? 'each player\'s total' : 'each player\'s best score'}.`,
             body: html`<p class="pl-crumbs"><a href="/">Games</a> / <a href="/t/${b.title}">${b.title_name}</a> /</p>
