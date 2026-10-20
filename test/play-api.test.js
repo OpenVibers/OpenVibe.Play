@@ -139,6 +139,11 @@ const DAY = 86_400_000;
             assert.doesNotMatch(title.text, /Nobody knows/, 'a secret achievement\'s text never shows');
             const board = await t.get('/t/salvage-rush/b/best?period=week');
             assert.match(board.text, /aria-current="page">This week</);
+            // Each period is its own page: the week board names itself, all time is the plain address.
+            assert.match(board.text, /<link rel="canonical" href="[^"]*\/t\/salvage-rush\/b\/best\?period=week">/);
+            const allTime = await t.get('/t/salvage-rush/b/best?period=all');
+            assert.match(allTime.text, /<link rel="canonical" href="[^"]*\/t\/salvage-rush\/b\/best">/);
+            assert.match(allTime.text, /<a href="\/t\/salvage-rush\/b\/best\?period=week">This week<\/a>/);
             assert.doesNotMatch(board.text, /usr_|guest:/);
             assert.strictEqual((await t.get('/t/nope')).status, 404);
             assert.strictEqual((await t.get('/t/salvage-rush/b/nope')).status, 404);
