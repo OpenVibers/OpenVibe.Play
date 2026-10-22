@@ -20,19 +20,21 @@
     "Titles registered and updated by their own principal (play.title.manage); a definition left out is retired, never deleted; a board never changes kind",
     "Score posts to a board, idempotent by ref (up to 100 entries), and unlocks that answer the new ones (play.result.write)",
     "Guest adoption: a guest's unlocks and scores become the person's when they sign in",
+    "Account merges (network.subject.merged): the folded account's unlocks, scores and saves become the survivor's in every title",
+    "Cloud saves: up to 8 versioned slots per player per title (a stale write is refused), listed and deleted by the person at /me/saves",
     "Boards: each player's best or total, this week (from Monday UTC) or all time, 25 a page, names and scores only",
     "Pages: home (every game, this week's leaders), a title, a board, your achievements, the API docs, /updates",
     "Account export and deletion (ADR-033) at the loopback POST /internal/events, subscriptions created at boot"
   ],
   "notYet": [
-    "OpenVibe.Games posting to Play and reading its boards from it (then Games' local progress tables go)",
+    "OpenVibe.Games reading its boards from Play (it already posts its scores, unlocks and guest adoptions here: Games#64, 2026-10-14), then Games' local progress tables go",
     "Events (play.achievement.unlocked) for quests and inventory rewards",
     "A title owned by a developer project through Services, and stats beyond scores",
     "Presence and lobbies (decision 10's remaining services)"
   ],
   "capabilitiesRegistered": true,
   "serviceManifestRegistered": true,
-  "deployed": false,
+  "deployed": true,
   "placeholderInSites": false,
   "features": [
     "titles",
@@ -40,8 +42,10 @@
     "leaderboards (best, sum; week, all time)",
     "idempotent results",
     "guest adoption",
+    "account merges",
+    "cloud saves",
     "account export and deletion"
   ],
   "deployment": "openvibe-ovh: unit openvibe-play.service on 127.0.0.1:5040 (git checkout /opt/play.openvibe.network, env /etc/openvibe/play.env, database ov_play), deployed with `sudo ovhost deploy play`; nginx vhost from deploy/nginx (ov-vhost-install) on the openvibe.network wildcard certificate.",
-  "updated": "2026-10-20"
+  "updated": "2026-10-22"
 }
