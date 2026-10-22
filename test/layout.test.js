@@ -38,11 +38,13 @@ const BOOST = /<script src="\/shared\/boost\.js\?v=[0-9a-f]{12}" data-main="#mai
         assert.strictEqual(r.status, 200);
         const head = r.text.slice(0, r.text.indexOf('</head>'));
         assert.strictEqual((r.text.match(/<title>/g) || []).length, 1, 'exactly one <title>');
-        assert.ok(head.includes('<title>OpenVibe.Play: Game achievements and leaderboards</title>'), 'home title');
+        assert.ok(head.includes('<title>OpenVibe.Play: Achievements, leaderboards and cloud saves</title>'), 'home title');
         assert.ok(head.includes('<link rel="canonical" href="https://play.openvibe.network/">'), 'canonical');
         assert.ok(head.includes('<meta name="robots" content="index, follow">'), 'robots');
         const ld = [...head.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])['@type']);
-        assert.deepStrictEqual(ld, ['WebSite', 'WebPage'], 'the home JSON-LD');
+        assert.deepStrictEqual(ld, ['WebSite', 'WebPage', 'FAQPage'], 'the home JSON-LD: the site, the page and the questions it shows');
+        const faq = [...head.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).find((j) => j['@type'] === 'FAQPage');
+        for (const q of faq.mainEntity) assert.ok(r.text.includes(`<summary>${q.name.replace(/'/g, '&#39;')}</summary>`) || r.text.includes(`<summary>${q.name}</summary>`), `the page shows "${q.name}"`);
         for (const tag of ['<meta property="og:title"', 'data-ov-icon="play"', '/css/app.css?v=', '/shared/theme-loader.js', '/shared/navbar.js', '/shared/footer.js', '<meta name="referrer"']) {
             assert.ok(head.includes(tag), `head has ${tag}`);
         }
@@ -61,7 +63,8 @@ const BOOST = /<script src="\/shared\/boost\.js\?v=[0-9a-f]{12}" data-main="#mai
         assert.strictEqual(r.status, 200, r.text.slice(0, 300));
         assert.match(r.headers.get('content-type'), /^text\/html/);
         assert.ok(r.text.includes('OpenVibe.Play'), 'the service name is on the page');
-        assert.ok(r.text.includes('Achievements and leaderboards'), 'what it is, on the page');
+        assert.ok(r.text.includes('Achievements, leaderboards'), 'what it is, on the page');
+        for (const id of ['pl-titles-h', 'sc-what-a-game-gets', 'sdk', 'sc-limits', 'pl-faq-h']) assert.ok(r.text.includes(`id="${id}"`), `the home has ${id}`);
         assert.ok(r.text.includes('/shared/showcase.css'), 'the showcase stylesheet');
         assert.ok(!r.text.includes('/home/') && !r.text.includes('/mnt/'), 'no local filesystem path on the page');
     });

@@ -15,7 +15,7 @@ const cache = require('openvibe-shared/cache-policy');
 const { asyncRouter } = require('./router');
 
 const SITE_NAME = 'OpenVibe.Play';
-const DESCRIPTION = 'OpenVibe.Play: achievements and leaderboards for every OpenVibe game.';
+const DESCRIPTION = 'Game services for OpenVibe games: achievements, weekly and all-time leaderboards and cloud saves, with guests welcome and an SDK for developers.';
 const DISALLOW = ['/auth/', '/api/', '/me'];
 
 const PAGE_TEXT = {

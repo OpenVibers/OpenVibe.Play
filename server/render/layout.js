@@ -20,7 +20,7 @@ const { html, raw, esc } = require('./html');
 
 const NETWORK_URL = 'https://openvibe.network';
 const SITE_NAME = 'OpenVibe.Play';
-const TAGLINE = 'Game achievements and leaderboards';
+const TAGLINE = 'Achievements, leaderboards and cloud saves';
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 // The product's own navigation: one entry per public page it serves.
 const NAV = [
