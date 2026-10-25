@@ -129,6 +129,19 @@ const DAY = 86_400_000;
             assert.strictEqual((await t.get('/api/v1/me/achievements')).status, 401);
         });
 
+        await check('anyone reads a person\'s achievements across games (their profile), from any site; never a guest\'s', async () => {
+            const r = await t.get(`/api/v1/people/${P1}/achievements`, { headers: { Origin: 'https://openvibe.games' } });
+            assert.strictEqual(r.status, 200);
+            assert.strictEqual(r.headers.get('access-control-allow-origin'), '*');
+            const body = r.json();
+            assert.strictEqual(body.subject, P1);
+            assert.deepStrictEqual(body.titles.map((x) => x.name), ['Salvage Rush']);
+            assert.strictEqual(body.total, body.titles[0].achievements.length);
+            assert.ok(body.total >= 2);
+            assert.strictEqual((await t.get('/api/v1/people/guest:abc/achievements')).status, 404, 'a guest\'s rows are the game\'s own');
+            assert.strictEqual((await t.get('/api/v1/people/not-a-subject/achievements')).status, 404);
+        });
+
         await check('the pages: home, a title, a board with its tabs, the docs, and llms.txt name the game', async () => {
             const home = await t.get('/');
             assert.strictEqual(home.status, 200);
