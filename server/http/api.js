@@ -64,7 +64,8 @@ function createApi(ctx) {
     }));
 
     // A person's unlocks, for their public profile (Steam-style: what you earned shows wherever you are). Only people
-    // (usr_…): a guest's rows are a game's own until it adopts them. 404 for no unlocks, the same as for no such person.
+    // (usr_…): a guest's rows are a game's own until it adopts them (404). Someone with no unlocks yet gets an empty list,
+    // the same answer as a subject Play has never seen, so the read never says whether an account exists.
     r.get('/people/:subject/achievements', reads, wrap(async (req, res) => {
         const subject = String(req.params.subject || '');
         if (!/^usr_[0-9A-HJKMNP-TV-Z]{26}$/.test(subject)) return http.sendProblem(res, 404, 'play.unknown_person', { detail: 'no such person', ctx: req.ov });
