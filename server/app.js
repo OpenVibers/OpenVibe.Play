@@ -140,10 +140,10 @@ async function createApp(opts = {}) {
     }));
 
     // ── API ─────────────────────────────────────────────────
-    // Public reads from any site: the titles and their leaderboards answer every origin, without credentials (a game's
-    // own page draws its board with them). Everything else keeps the same-site resource policy and no CORS. A preflight
+    // Public reads from any site: the titles, their leaderboards and a person's achievements answer every origin,
+    // without credentials (a game's own page draws its board with them; any site shows a profile's showcase). Everything else keeps the same-site resource policy and no CORS. A preflight
     // is answered here.
-    const PUBLIC_READ = /^\/(?:ping|titles(?:\/[^/]+(?:\/boards\/[^/]+)?)?)$/;
+    const PUBLIC_READ = /^\/(?:ping|titles(?:\/[^/]+(?:\/boards\/[^/]+)?)?|people\/[^/]+\/achievements)$/;
     app.use('/api/v1', (req, res, next) => {
         if (!PUBLIC_READ.test(req.path) || !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
         res.setHeader('Access-Control-Allow-Origin', '*');

@@ -240,6 +240,7 @@ ${saves.length ? html`<section><h2>Your saves</h2><p class="pl-muted">What games
 <li><code>GET /titles</code>: every game, with its achievements (how many players have each) and its boards.</li>
 <li><code>GET /titles/:title</code>: one game.</li>
 <li><code>GET /titles/:title/boards/:board?period=week|all&amp;page=1</code>: 25 entries a page: <code>rank</code>, <code>name</code>, <code>score</code>, and whether the player was signed in. Never a player id.</li>
+<li><code>GET /people/:subject/achievements</code>: anyone, from any site: a person's unlocks in every game (what their profile shows).</li>
 <li><code>GET /me/achievements</code>: with a person's Network token, their own unlocks in every game.</li>
 </ul>
 <h2>Writing (the game's own token)</h2>

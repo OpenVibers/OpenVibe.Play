@@ -7,6 +7,8 @@
  *   GET  /titles                                          public             every title, with its achievements and boards
  *   GET  /titles/:title                                   public             one title
  *   GET  /titles/:title/boards/:board?period=&page=       public             a leaderboard: rank, name, score (never a player id)
+ *   GET  /people/:subject/achievements                    public             a person's unlocks across every title (their profile:
+ *                                                                              OpenVibe.Network's /@name and any site's showcase)
  *   GET  /me/achievements                                 a person           their own unlocks across titles
  *   PUT  /titles/:title                                   play.title.manage  register or update a title the caller manages
  *   POST /titles/:title/scores                            play.result.write  post a round's scores to a board (idempotent by ref)
@@ -59,6 +61,16 @@ function createApi(ctx) {
     r.get('/titles/:title/boards/:board', reads, wrap(async (req, res) => {
         const page = req.query.page === undefined ? 1 : Number(req.query.page);
         return res.json(await play.board(req.params.title, req.params.board, { period: String(req.query.period || 'all'), page }));
+    }));
+
+    // A person's unlocks, for their public profile (Steam-style: what you earned shows wherever you are). Only people
+    // (usr_…): a guest's rows are a game's own until it adopts them. 404 for no unlocks, the same as for no such person.
+    r.get('/people/:subject/achievements', reads, wrap(async (req, res) => {
+        const subject = String(req.params.subject || '');
+        if (!/^usr_[0-9A-HJKMNP-TV-Z]{26}$/.test(subject)) return http.sendProblem(res, 404, 'play.unknown_person', { detail: 'no such person', ctx: req.ov });
+        const titles = await play.playerAchievements(subject);
+        res.set('Cache-Control', 'public, max-age=60');
+        return res.json({ subject, total: titles.reduce((n, t) => n + t.achievements.length, 0), titles });
     }));
 
     // ── A person's own ────────────────────────────────────

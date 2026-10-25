@@ -100,6 +100,7 @@ Migrations run at boot.
 |---|---|---|
 | `GET /titles`, `GET /titles/:title` | anyone (CORS) | the games, their achievements (with how many players have each) and boards |
 | `GET /titles/:title/boards/:board?period=week\|all&page=` | anyone (CORS) | a board: `rank`, `name`, `score`, `signed_in` |
+| `GET /people/:subject/achievements` | anyone (CORS) | a person's unlocks in every game, `{ subject, total, titles }`: their profile on OpenVibe.Network and any site's showcase (only people, never a guest) |
 | `GET /me/achievements` | a person | their unlocks in every game |
 | `PUT /titles/:title` | `play.title.manage` | register or update a title: name, url, summary, achievements, boards |
 | `POST /titles/:title/scores` | `play.result.write` | `{ board, ref, entries: [{ player, name, score }] }`, up to 100 |
