@@ -22,7 +22,8 @@
  *   GET  /me/saves, DELETE /me/saves/:title/:slot         a person           their own slots in every title; delete one
  *
  * Writes come from the principal that registered the title (a game's service token); another one is told the title
- * does not exist. Public reads answer every origin without credentials. A refusal is RFC 9457 problem+json.
+ * does not exist. A developer's sandbox app manages sandbox-… titles only (play/store.js). Public reads answer every
+ * origin without credentials. A refusal is RFC 9457 problem+json.
  */
 const express = require('express');
 const { http } = require('openvibe-contracts');
@@ -97,7 +98,7 @@ function createApi(ctx) {
 
     // ── A title's own principal ───────────────────────────
     r.put('/titles/:title', principal.requireCapability('play.title.manage'), titleOwner, limits.budget('play.define'), wrap(async (req, res) => {
-        const out = await play.define(req.principal.requester, req.params.title, req.body || {});
+        const out = await play.define(req.principal.requester, req.params.title, req.body || {}, { sandbox: req.principal.sandbox === true });
         return res.status(out.created ? 201 : 200).json(out);
     }));
     r.post('/titles/:title/scores', principal.requireCapability('play.result.write'), titleOwner, limits.budget('play.write'), wrap(async (req, res) => {

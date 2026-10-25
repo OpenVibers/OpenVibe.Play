@@ -18,6 +18,11 @@
  *
  * Every write names the title it is for, and only the principal that registered a title writes to it: another
  * principal is told the title does not exist. A player is a person (usr_…) or a guest the title names (guest:<opaque>).
+ *
+ * The sandbox (ADR-014 opt-in): any developer's sandbox app tries Play on titles of its own. Their ids start with
+ * `sandbox-` (a sandbox app registers nothing else and a production app never one), an app has at most
+ * MAX_SANDBOX_TITLES, their players are guests only (no person's record changes, nothing is adopted), and they are never
+ * listed or counted: readable by their id, marked `sandbox: true`. The real name comes with a production app.
  */
 const PLAYER_RE = /^(usr_[0-9A-HJKMNP-TV-Z]{26}|guest:[A-Za-z0-9_-]{8,128})$/;
 const SLOT_RE = /^[a-z0-9][a-z0-9_-]{0,31}$/;
@@ -29,6 +34,9 @@ const PER_PAGE = 25;
 const MAX_ENTRIES = 100;
 const MAX_DEFS = 200;
 const EARLIEST = Date.UTC(2020, 0, 1);
+const SANDBOX_PREFIX = 'sandbox-';
+const MAX_SANDBOX_TITLES = 3;
+const isSandbox = (titleId) => String(titleId || '').startsWith(SANDBOX_PREFIX);
 
 class PlayError extends Error {
     constructor(status, code, detail) { super(detail || code); this.status = status; this.code = code; this.detail = detail; }
@@ -60,6 +68,12 @@ function createPlay({ s }) {
         if (!PLAYER_RE.test(String(p || ''))) fail(400, 'play.bad_player', 'player is a person (usr_…) or guest:<opaque> (8 to 128 of A-Z a-z 0-9 _ -)');
         return p;
     };
+    /** A player of this title: a sandbox title's are guests only. */
+    const playerIn = (titleId, p) => {
+        player(p);
+        if (isSandbox(titleId) && !String(p).startsWith('guest:')) fail(400, 'play.sandbox_guests_only', 'a sandbox title\'s players are guests (guest:<opaque>): no person\'s record changes until your game has a production app');
+        return p;
+    };
 
     function defsOf(list, what, extra) {
         if (list === undefined) return null;
@@ -75,8 +89,10 @@ function createPlay({ s }) {
         });
     }
 
-    async function define(owner, titleId, doc = {}) {
+    async function define(owner, titleId, doc = {}, { sandbox = false } = {}) {
         if (!TITLE_RE.test(String(titleId || ''))) fail(400, 'play.bad_title', 'a title id is 2 to 40 of a-z, 0-9 and -');
+        if (sandbox && !isSandbox(titleId)) fail(400, 'play.sandbox_title', `a sandbox app's title id starts with ${SANDBOX_PREFIX} (the real name comes with a production app)`);
+        if (!sandbox && isSandbox(titleId)) fail(400, 'play.sandbox_title', `${SANDBOX_PREFIX} ids are for sandbox apps`);
         const name = str(doc.name, 80);
         if (!name) fail(400, 'play.bad_title', 'a title needs a name');
         const url = doc.url == null || doc.url === '' ? null : String(doc.url);
@@ -90,6 +106,9 @@ function createPlay({ s }) {
         return await s.tx(async () => {
             const cur = await db.maybe('SELECT * FROM play_titles WHERE id = $1 FOR UPDATE', [titleId]);
             if (cur && cur.owner !== owner) fail(409, 'play.title_taken', 'another principal manages this title');
+            if (!cur && sandbox && Number(await db.value('SELECT COUNT(*) FROM play_titles WHERE owner = $1', [owner])) >= MAX_SANDBOX_TITLES) {
+                fail(409, 'play.sandbox_limit', `a sandbox app has at most ${MAX_SANDBOX_TITLES} titles`);
+            }
             if (cur) await db.exec('UPDATE play_titles SET name = $2, url = $3, summary = $4, updated_at = $5 WHERE id = $1', [titleId, name, url, str(doc.summary, 300), now]);
             else await db.exec('INSERT INTO play_titles (id, owner, name, url, summary, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $6)', [titleId, owner, name, url, str(doc.summary, 300), now]);
             if (achievements) {
@@ -128,7 +147,7 @@ function createPlay({ s }) {
             if (!Number.isSafeInteger(score) || score < 0) fail(400, 'play.bad_scores', `entries[${i}].score is a whole number, 0 or more`);
             const name = str(e.name, 40);
             if (!name) fail(400, 'play.bad_scores', `entries[${i}].name is the name to show`);
-            return [player(e.player), name, score];
+            return [playerIn(titleId, e.player), name, score];
         });
         let recorded = 0;
         await s.tx(async () => {
@@ -142,7 +161,7 @@ function createPlay({ s }) {
 
     async function unlock(owner, titleId, post = {}) {
         await ownTitle(owner, titleId);
-        const p = player(post.player);
+        const p = playerIn(titleId, post.player);
         const ids = post.achievements;
         if (!Array.isArray(ids) || !ids.length || ids.length > MAX_DEFS || !ids.every((x) => DEF_RE.test(String(x)))) fail(400, 'play.bad_unlock', 'achievements is a list of achievement ids');
         const known = new Set((await db.many('SELECT id FROM play_achievements WHERE title_id = $1 AND NOT retired', [titleId])).map((r) => r.id));
@@ -163,6 +182,7 @@ function createPlay({ s }) {
     /** A guest signed in: their unlocks and scores in this title become the person's (the earliest unlock wins). */
     async function adopt(owner, titleId, guest, person) {
         await ownTitle(owner, titleId);
+        if (isSandbox(titleId)) fail(400, 'play.sandbox_guests_only', 'a sandbox title never adopts: its players stay guests');
         if (!/^guest:/.test(player(guest))) fail(400, 'play.bad_player', 'only a guest is adopted');
         if (!/^usr_/.test(player(person))) fail(400, 'play.bad_player', 'a guest is adopted by a person (usr_…)');
         return await s.tx(() => moveRows(titleId, guest, person));
@@ -240,7 +260,7 @@ function createPlay({ s }) {
             WHERE a.title_id = $1 AND NOT a.retired GROUP BY a.title_id, a.id ORDER BY a.position, a.id`, [t.id]);
         const boards = await db.many('SELECT id, name, kind FROM play_boards WHERE title_id = $1 AND NOT retired ORDER BY position, id', [t.id]);
         return {
-            id: t.id, name: t.name, url: t.url, summary: t.summary, players,
+            id: t.id, name: t.name, url: t.url, summary: t.summary, players, ...(isSandbox(t.id) ? { sandbox: true } : {}),
             achievements: achievements.map((a) => (a.hidden
                 ? { id: a.id, hidden: true, unlocked_by: a.unlocked_by, name: 'A secret achievement', description: '' }
                 : { id: a.id, name: a.name, description: a.description, unlocked_by: a.unlocked_by })),
@@ -250,7 +270,7 @@ function createPlay({ s }) {
     }
 
     async function titles() {
-        const ids = (await db.many('SELECT id FROM play_titles ORDER BY created_at, id')).map((r) => r.id);
+        const ids = (await db.many("SELECT id FROM play_titles WHERE id NOT LIKE 'sandbox-%' ORDER BY created_at, id")).map((r) => r.id);
         const out = [];
         for (const id of ids) out.push(await title(id));
         return out;
@@ -276,7 +296,7 @@ function createPlay({ s }) {
     /** Writes a slot. `version` (optional) is the version the writer read: a stale one is refused (409), a new slot takes 0. */
     async function putSave(owner, titleId, playerId, slot, { data, version } = {}) {
         await ownTitle(owner, titleId);
-        player(playerId); slotOf(slot);
+        playerIn(titleId, playerId); slotOf(slot);
         if (data === undefined) fail(400, 'play.bad_save', 'data is the save, any JSON value');
         const json = JSON.stringify(data);
         const size = Buffer.byteLength(json, 'utf8');
@@ -326,4 +346,4 @@ function createPlay({ s }) {
         putSave, getSave, listSaves, deleteSave, mySaves, deleteMySave };
 }
 
-module.exports = { createPlay, PlayError, PLAYER_RE, TITLE_RE, SLOT_RE, MAX_SLOTS, MAX_SAVE_BYTES, weekStart, PER_PAGE };
+module.exports = { createPlay, PlayError, PLAYER_RE, TITLE_RE, SLOT_RE, MAX_SLOTS, MAX_SAVE_BYTES, MAX_SANDBOX_TITLES, SANDBOX_PREFIX, isSandbox, weekStart, PER_PAGE };
