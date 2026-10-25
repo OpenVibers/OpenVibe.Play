@@ -64,6 +64,16 @@ const CAPS = ['play.title.manage', 'play.result.write', 'play.player.read'];
             assert.ok(!(await t.get('/sitemap.xml')).text.includes('sandbox-'), 'not in the sitemap');
         });
 
+        await check('a sandbox title is deleted by its app with everything in it; a production title never', async () => {
+            const del = (id, auth) => t.get(`/api/v1/titles/${id}`, { ...auth, method: 'DELETE' });
+            assert.deepStrictEqual(await code(del('gem-run', production)), [409, 'play.title_kept']);
+            assert.deepStrictEqual(await code(del('sandbox-gem-run', production)), [404, 'play.unknown_title'], 'another app is told it does not exist');
+            assert.strictEqual((await del('sandbox-gem-run', sandbox)).status, 204);
+            assert.strictEqual((await t.get('/api/v1/titles/sandbox-gem-run')).status, 404);
+            assert.strictEqual((await t.get('/t/sandbox-gem-run/b/best')).status, 404, 'its boards went with it');
+            assert.strictEqual((await put('sandbox-four', sandbox)).status, 201, 'the room it took is free again');
+        });
+
         await check('the docs and the home say how to start', async () => {
             const docs = await t.get('/docs');
             assert.match(docs.text, /<h2 id="sandbox">Your own game: start in the sandbox<\/h2>/);
