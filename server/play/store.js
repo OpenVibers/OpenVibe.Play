@@ -5,6 +5,7 @@
  *
  *   define(owner, titleId, doc)            register or update a title the caller manages; definitions missing from doc
  *                                          are retired, never deleted (the unlocks and scores stay)
+ *   removeSandbox(owner, titleId)          delete a sandbox title with everything in it (a production title stays)
  *   recordScores(owner, titleId, post)     { board, ref, entries: [{ player, name, score }], at? } → { recorded }
  *   unlock(owner, titleId, post)           { player, achievements: [id…], at? } → { unlocked: [newly unlocked ids] }
  *   adopt(owner, titleId, guest, person)   move a guest's unlocks and scores to the person who signed in
@@ -131,6 +132,14 @@ function createPlay({ s }) {
             }
             return { title: await title(titleId), created: !cur };
         });
+    }
+
+    /** A sandbox title's app deletes it with everything in it: its players are guests, so no one's record changes. A
+     *  production title is never deleted: what players earned stays on their profiles. */
+    async function removeSandbox(owner, titleId) {
+        const t = await ownTitle(owner, titleId);
+        if (!isSandbox(t.id)) fail(409, 'play.title_kept', 'a production title is never deleted: what players earned stays (leave achievements and boards out of an update to retire them)');
+        await db.exec('DELETE FROM play_titles WHERE id = $1 AND owner = $2', [t.id, owner]);
     }
 
     async function recordScores(owner, titleId, post = {}) {
@@ -342,7 +351,7 @@ function createPlay({ s }) {
         return (await db.exec('DELETE FROM play_saves WHERE title_id = $1 AND player = $2 AND slot = $3', [titleId, player(person), slotOf(slot)])) > 0;
     }
 
-    return { define, recordScores, unlock, adopt, mergeSubject, board, title, titles, playerAchievements, ownTitle,
+    return { define, removeSandbox, recordScores, unlock, adopt, mergeSubject, board, title, titles, playerAchievements, ownTitle,
         putSave, getSave, listSaves, deleteSave, mySaves, deleteMySave };
 }
 

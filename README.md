@@ -11,7 +11,8 @@ its boards. The rules of each game stay in the game; Play keeps the record and a
 - **Your own game, from the sandbox** (ADR-014 opt-in): any developer makes a project on openvibe.services and a sandbox
   app with Play's three capabilities (in Network's default sandbox allowance). A sandbox app registers up to 3 titles
   whose ids start with `sandbox-`, with guest players only (nothing adopted, no person's record touched), never listed,
-  counted or indexed: readable at their id, marked `sandbox: true`. A production app (staff turn production on for the
+  counted or indexed: readable at their id, marked `sandbox: true`, and deleted by their app (`DELETE /titles/:title`;
+  a production title is never deleted). A production app (staff turn production on for the
   project) registers the real name; it never takes a `sandbox-` id.
 - **Achievements**, including hidden ones whose name shows only once unlocked. A definition left out of an update is
   retired, never deleted: what players earned stays.

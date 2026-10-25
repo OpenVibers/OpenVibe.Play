@@ -11,6 +11,7 @@
  *                                                                              OpenVibe.Network's /@name and any site's showcase)
  *   GET  /me/achievements                                 a person           their own unlocks across titles
  *   PUT  /titles/:title                                   play.title.manage  register or update a title the caller manages
+ *   DELETE /titles/:title                                 play.title.manage  delete a sandbox title the caller manages (204)
  *   POST /titles/:title/scores                            play.result.write  post a round's scores to a board (idempotent by ref)
  *   POST /titles/:title/unlocks                           play.result.write  unlock achievements for a player (idempotent)
  *   POST /titles/:title/players/:guest/adopt              play.result.write  a guest signed in: their rows become the person's
@@ -100,6 +101,10 @@ function createApi(ctx) {
     r.put('/titles/:title', principal.requireCapability('play.title.manage'), titleOwner, limits.budget('play.define'), wrap(async (req, res) => {
         const out = await play.define(req.principal.requester, req.params.title, req.body || {}, { sandbox: req.principal.sandbox === true });
         return res.status(out.created ? 201 : 200).json(out);
+    }));
+    r.delete('/titles/:title', principal.requireCapability('play.title.manage'), titleOwner, limits.budget('play.define'), wrap(async (req, res) => {
+        await play.removeSandbox(req.principal.requester, req.params.title);
+        return res.status(204).end();
     }));
     r.post('/titles/:title/scores', principal.requireCapability('play.result.write'), titleOwner, limits.budget('play.write'), wrap(async (req, res) => {
         res.json(await play.recordScores(req.principal.requester, req.params.title, req.body || {}));
