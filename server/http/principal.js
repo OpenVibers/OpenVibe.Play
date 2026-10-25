@@ -5,10 +5,13 @@
  *
  *   { kind: 'user', requester: 'user:usr_…', project: null, viaSession }    a person: their Network token as a Bearer,
  *                                                                           or this site's session cookie
- *   { kind: 'app', requester: 'app:app_…' | 'agent:agt_…' | 'service:x', project: 'prj_…' | null, claims }
+ *   { kind: 'app', requester: 'app:app_…' | 'agent:agt_…' | 'service:x', project: 'prj_…' | null, sandbox, claims }
  *                                                                           a Network app, agent or service token for
  *                                                                           audience openvibe.play; each route names
- *                                                                           ONE capability it needs
+ *                                                                           ONE capability it needs. `sandbox`: an
+ *                                                                           outside developer's sandbox app (ADR-014
+ *                                                                           opt-in), which manages sandbox titles only
+ *                                                                           (play/store.js)
  *   { kind: 'anonymous' }
  *
  * A request that presents a token is judged on that token alone: a bad one is refused, never downgraded to the
@@ -52,10 +55,12 @@ function createPrincipal({ config, keys }) {
             if (payload && typeof payload.sub === 'string' && PRINCIPAL_SUB.test(payload.sub)) {
                 const publicKey = await keys.pemForToken(token);
                 if (!publicKey) return { error: [503, 'identity.unavailable', 'the Network signing key is not loaded yet'] };
-                const r = serviceAuth.verifyServiceToken(token, { publicKey, issuer: config.networkIssuer, audience: config.audience });
+                // Sandbox app tokens are accepted (ADR-014 opt-in): a sandbox app registers and writes sandbox titles only,
+                // whose players are guests and which are never listed or counted (play/store.js).
+                const r = serviceAuth.verifyServiceToken(token, { publicKey, issuer: config.networkIssuer, audience: config.audience, acceptSandbox: true });
                 if (!r.ok) return { error: [401, r.code || 'token.invalid', r.reason || 'the token does not verify'] };
                 const project = typeof r.claims.project_id === 'string' && PROJECT_RE.test(r.claims.project_id) ? r.claims.project_id : null;
-                return { principal: { kind: 'app', requester: requesterOfSub(r.claims.sub), project, claims: r.claims } };
+                return { principal: { kind: 'app', requester: requesterOfSub(r.claims.sub), project, sandbox: r.claims.env === 'sandbox', claims: r.claims } };
             }
             // A person's own Network token (the same kind this site's session holds).
             const v = await keys.verifyUser(token, { issuer: config.networkIssuer, audience: config.oauth.sessionAudience });

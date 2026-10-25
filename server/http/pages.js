@@ -20,7 +20,7 @@ const { asyncRouter } = require('./router');
 const { createDiscoveryRoutes, homeJsonLd } = require('./discovery');
 const { html, raw } = require('../render/html');
 const { send } = require('../render/layout');
-const { PlayError, PLAYER_RE, MAX_SLOTS, MAX_SAVE_BYTES, PER_PAGE } = require('../play/store');
+const { PlayError, PLAYER_RE, MAX_SLOTS, MAX_SAVE_BYTES, MAX_SANDBOX_TITLES, isSandbox, PER_PAGE } = require('../play/store');
 
 const SITE_NAME = 'OpenVibe.Play';
 const num = (n) => Number(n).toLocaleString('en-US');
@@ -34,6 +34,7 @@ const HOME_FAQ = [
     { q: 'How do cloud saves avoid overwriting each other?', a: `A player has up to ${MAX_SLOTS} save slots per game, ${MAX_SAVE_BYTES / 1024} KB each. Every write names the version it read; if another device saved in between, the write is refused with play.save_conflict, so the game can merge instead of losing progress.` },
     { q: 'What happens when a game changes its achievements?', a: 'An achievement or board the game stops listing is retired, never deleted: what players earned stays on their profile.' },
     { q: 'How does a game use Play?', a: "Its server calls Play's API (or the openvibe-sdk/play client) with an OpenVibe token granted Play's capabilities. The app that registers a title is its only writer; posting the same round twice changes nothing." },
+    { q: 'Can I add my own game?', a: `Yes. Make a project on openvibe.services with a sandbox app holding Play's three capabilities: it registers up to ${MAX_SANDBOX_TITLES} sandbox- titles (unlisted, guest players) to try everything. Once staff turn production on for the project, its production app takes the real name.` },
     { q: 'Where do I see my own achievements?', a: 'Sign in and open Your achievements: every game, every unlock and when it happened.' },
 ];
 function homeFaqJsonLd() {
@@ -118,7 +119,7 @@ ${raw(showcase.features({
 ${raw(showcase.steps({
                 title: 'How a game uses Play',
                 items: [
-                    { title: 'Register the title', text: 'A game\'s server registers its title with its own OpenVibe token: its achievements and its boards.' },
+                    { title: 'Register the title', text: 'A game\'s server registers its title with its own OpenVibe token: its achievements and its boards. Yours starts in the sandbox.', href: '/docs#sandbox' },
                     { title: 'Post what happened', text: 'Scores for each round and the achievements a player unlocked, each idempotent, so a retry never counts twice.' },
                     { title: 'Read the boards anywhere', text: 'Boards are public JSON for any page: a best score or a total, this week or all time.' },
                     { title: 'Guests count', text: 'A guest plays at once; when they sign in, the game moves their progress to their account.', href: '/docs' },
@@ -173,10 +174,11 @@ ${raw(showcase.limits({
         const boards = [];
         for (const b of t.boards) boards.push(await play.board(t.id, b.id, { period: 'week' }));
         page(req, res, {
-            index: true, cache: PUBLIC_CACHE, title: `${t.name}: achievements and leaderboards`,
+            index: !t.sandbox, cache: PUBLIC_CACHE, title: `${t.name}: achievements and leaderboards`,
             description: `${t.name} on OpenVibe.Play: ${plural(t.achievements.length, 'achievement', 'achievements')} and ${plural(t.boards.length, 'leaderboard', 'leaderboards')}, this week and all time.`,
             body: html`<p class="pl-crumbs"><a href="/">Games</a> /</p>
 <h1>${t.name}</h1>
+${t.sandbox ? html`<p class="pl-muted">Sandbox: a developer is trying Play with this game. It is not listed anywhere, and its players are guests.</p>` : ''}
 ${t.summary ? html`<p class="pl-lede">${t.summary}</p>` : ''}
 ${t.url ? html`<p><a class="pl-button" href="${t.url}">Play ${t.name}</a></p>` : ''}
 ${boards.length ? html`<section aria-labelledby="pl-boards-h"><h2 id="pl-boards-h">Leaderboards this week</h2>${boards.map((b) => html`<h3>${b.name}</h3>${boardTable({ ...b, entries: b.entries.slice(0, 10) })}<p><a href="/t/${t.id}/b/${b.board}?period=week">This week</a> · <a href="/t/${t.id}/b/${b.board}">All time</a></p>`)}</section>` : ''}
@@ -201,7 +203,7 @@ ${boards.length ? html`<section aria-labelledby="pl-boards-h"><h2 id="pl-boards-
         };
         page(req, res, {
             canonicalPath: link({ page: pageNo }),
-            index: true, cache: PUBLIC_CACHE, title: `${b.name}, ${period === 'week' ? 'this week' : 'all time'} · ${b.title_name}`,
+            index: !isSandbox(b.title), cache: PUBLIC_CACHE, title: `${b.name}, ${period === 'week' ? 'this week' : 'all time'} · ${b.title_name}`,
             description: `The ${b.name} leaderboard of ${b.title_name}, ${period === 'week' ? 'this week' : 'all time'}: ${b.kind === 'sum' ? 'each player\'s total' : 'each player\'s best score'}.`,
             body: html`<p class="pl-crumbs"><a href="/">Games</a> / <a href="/t/${b.title}">${b.title_name}</a> /</p>
 <h1>${b.name}</h1>
@@ -259,7 +261,14 @@ ${saves.length ? html`<section><h2>Your saves</h2><p class="pl-muted">What games
 <li><code>GET /titles/:title/players/:player/saves/:slot</code> (<code>play.player.read</code>): <code>{ slot, version, data, created_at, updated_at }</code>; <code>GET …/saves</code> lists the slots without their data; <code>DELETE …/saves/:slot</code> (<code>play.result.write</code>).</li>
 <li><code>GET /me/saves</code> and <code>DELETE /me/saves/:title/:slot</code>: with a person's own Network token, their slots in every game.</li>
 </ul>
-<p>A <code>player</code> is a person's OpenVibe subject (<code>usr_…</code>) or a guest your game names, <code>guest:</code> followed by 8 to 128 letters, digits, <code>_</code> or <code>-</code>. Only people's rows are personal data: they are in the person's account export and erased with their account.</p>`,
+<p>A <code>player</code> is a person's OpenVibe subject (<code>usr_…</code>) or a guest your game names, <code>guest:</code> followed by 8 to 128 letters, digits, <code>_</code> or <code>-</code>. Only people's rows are personal data: they are in the person's account export and erased with their account.</p>
+<h2 id="sandbox">Your own game: start in the sandbox</h2>
+<ol>
+<li>Sign in on <a href="https://openvibe.services/projects">OpenVibe Services</a> and make a project (new projects are sandbox-only).</li>
+<li>Add a sandbox app and ask for <code>play.title.manage</code>, <code>play.result.write</code> and <code>play.player.read</code>: a sandbox app gets them without waiting for anyone.</li>
+<li>Get a token for audience <code>openvibe.play</code> (client credentials) and <code>PUT /titles/sandbox-your-game</code>.</li>
+</ol>
+<p>A sandbox app registers up to ${String(MAX_SANDBOX_TITLES)} titles, each id starting with <code>sandbox-</code> (anything else answers <code>400 play.sandbox_title</code>). Their players are guests only (<code>400 play.sandbox_guests_only</code> for a person), nothing is adopted, and they are never listed, counted or indexed: their pages and JSON answer at their id, marked <code>sandbox: true</code>, so you can check your boards. When your game is ready, staff turn production on for your project; its production app registers the real name and real players' progress counts on their profiles.</p>`,
     }));
 
     r.get('/updates', (req, res) => page(req, res, {
