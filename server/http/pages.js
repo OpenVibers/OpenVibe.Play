@@ -79,7 +79,7 @@ function createPageRoutes(ctx) {
         if (unlocks) stats.push([plural(unlocks, 'unlock', 'unlocks'), 'earned by players so far']);
         stats.push([`${MAX_SLOTS} save slots`, `per player per game, ${MAX_SAVE_BYTES / 1024} KB each`]);
         const hero = showcase.hero({
-            eyebrow: `${SITE_NAME} · part of OpenVibe`,
+            eyebrow: `${SITE_NAME} · part of OpenVibe Services`,
             title: 'Achievements, leaderboards',
             accent: 'and cloud saves for every game.',
             lede: 'The game services behind OpenVibe games: achievements players keep, weekly and all-time leaderboards, and saves that follow them from device to device. Guests play at once; their progress moves to their OpenVibe account when they sign in.',
