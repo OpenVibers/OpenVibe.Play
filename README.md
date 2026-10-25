@@ -139,6 +139,6 @@ AGPL-3.0. Part of the [OpenVibe network](https://openvibe.network).
 
 <!-- versions:start -->
 - openvibe-contracts: v0.213.0
-- openvibe-sdk: v0.62.0
+- openvibe-sdk: v0.64.0
 - openvibe-shared: v4.11.0
 <!-- versions:end -->
