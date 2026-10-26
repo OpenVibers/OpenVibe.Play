@@ -15,7 +15,7 @@ const { measure, check, format } = require('openvibe-shared/perf-budget');
 // headroom; file counts are the measured counts and external files stay at 0.
 const BUDGETS = {
     htmlRawKB: 28.5,   // measured 24.9 (the home page: hero, features, steps, cta, JSON-LD); 27.8 with "Can I add my own game?" (10-25, also in the FAQPage JSON-LD)
-    htmlBrotliKB: 6.9,   // 6.2
+    htmlBrotliKB: 8,   // 7 Shared 4.14 (4.13's home kit); 6.2
     jsFiles: 5,   // 5 (theme-loader, web-runtime, navbar, footer, boost: openvibe-shared/shell)
     jsRawKB: 269,   // 264.3 with Shared 4.13.0 (2026-10-26: account links); 239.8
     jsBrotliKB: 67,   // 65.3 Shared 4.12.0: the light/dark switch, the seasonal mark and the theme pairs; 56.5
