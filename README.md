@@ -16,8 +16,10 @@ its boards. The rules of each game stay in the game; Play keeps the record and a
   project) registers the real name; it never takes a `sandbox-` id.
 - **Achievements**, including hidden ones whose name shows only once unlocked. A definition left out of an update is
   retired, never deleted: what players earned stays.
-- **Leaderboards** of two kinds: `best` ranks each player's best score, `sum` the total of theirs. Each reads this week
-  (from Monday 00:00 UTC) or all time, 25 a page. A tie goes to whoever got there first.
+- **Leaderboards** of three kinds. `best` ranks each player's best score. `sum` ranks the total of theirs. `time`
+  ranks each player's fastest run, in whole milliseconds (at most 24 hours), fastest first. Each reads this week (from
+  Monday 00:00 UTC) or all time, 25 a page, and a tie goes to whoever got there first. A board's `unit` says what its
+  scores mean: `"ms"` for `time`, `"points"` for the others.
 - **Players** are people (`usr_…`) or guests a game names (`guest:<opaque>`). When a guest signs in, the game adopts
   them and their unlocks and scores become the person's. When two OpenVibe accounts are merged (`network.subject.merged`),
   the folded account's unlocks and scores become the survivor's in every title.
@@ -82,7 +84,9 @@ exist. Reads of titles and boards are public.
 
 Tested in `test/` (`npm test`, every file in its own process on PGlite; `npm run test:pg` on PostgreSQL):
 `play-api.test.js` (titles, owner-only writes, idempotent scores, best and sum boards with the Monday week, guest
-adoption, secret achievements, retired definitions, a person's own achievements, the pages), `account-data.test.js`
+adoption, secret achievements, retired definitions, a person's own achievements, the pages), `time-boards.test.js`
+(time boards, their ties, validation and units), `time-migration.test.js` (the kind CHECK widening over existing
+boards), `account-data.test.js`
 (export, erasure and account merges), the auth, limits, discovery, layout, open-redirect, nginx and security tests, and
 the home page's size budget.
 
@@ -105,11 +109,11 @@ Migrations run at boot.
 | Route | Who | What |
 |---|---|---|
 | `GET /titles`, `GET /titles/:title` | anyone (CORS) | the games, their achievements (with how many players have each) and boards |
-| `GET /titles/:title/boards/:board?period=week\|all&page=` | anyone (CORS) | a board: `rank`, `name`, `score`, `signed_in` |
+| `GET /titles/:title/boards/:board?period=week\|all&page=` | anyone (CORS) | a board: `rank`, `name`, `score`, `signed_in`, `unit` (`ms` for a time board, `points` otherwise) |
 | `GET /people/:subject/achievements` | anyone (CORS) | a person's unlocks in every game, `{ subject, total, titles }`: their profile on OpenVibe.Network and any site's showcase (only people, never a guest) |
 | `GET /me/achievements` | a person | their unlocks in every game |
 | `PUT /titles/:title` | `play.title.manage` | register or update a title: name, url, summary, achievements, boards |
-| `POST /titles/:title/scores` | `play.result.write` | `{ board, ref, entries: [{ player, name, score }] }`, up to 100 |
+| `POST /titles/:title/scores` | `play.result.write` | `{ board, ref, entries: [{ player, name, score }] }`, up to 100; a `time` board's score is whole milliseconds from 0 to 86400000 |
 | `POST /titles/:title/unlocks` | `play.result.write` | `{ player, achievements: [id] }` → the new ones |
 | `POST /titles/:title/players/:guest/adopt` | `play.result.write` | `{ person: "usr_…" }`: a guest signed in |
 | `GET /titles/:title/players/:player/achievements` | `play.player.read` | a player's unlocks in your title |
