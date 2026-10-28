@@ -105,7 +105,7 @@ function createDiscoveryRoutes(ctx) {
             pages: [
                 { title: `${t.name}: achievements and leaderboards`, url: `/t/${t.id}`, text: t.summary || `${plural(t.achievements.length, 'achievement', 'achievements')}` },
                 ...t.achievements.filter((a) => !a.hidden).map((a) => ({ title: a.name, url: `/t/${t.id}`, text: a.description || 'An achievement' })),
-                ...t.boards.map((b) => ({ title: b.name, url: boardPath(t.id, b.id, 'all'), text: b.kind === 'sum' ? 'Each player\'s total' : 'Each player\'s best score' })),
+                ...t.boards.map((b) => ({ title: b.name, url: boardPath(t.id, b.id, 'all'), text: b.kind === 'sum' ? 'Each player\'s total' : b.kind === 'time' ? 'Each player\'s fastest time in milliseconds' : 'Each player\'s best score' })),
             ],
         }));
         res.type('text/plain').set('Cache-Control', TEXT).send(seo.llmsFull({

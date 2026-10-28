@@ -15,14 +15,14 @@
     "openvibe-sdk v0.67.0",
     "openvibe-shared v4.30.0"
   ],
-  "summary": "OpenVibe.Play — achievements and leaderboards for every OpenVibe game (Games ADR-0007 decision 10). A title is registered by its own principal (a game's service or app token), which alone writes to it: achievements (with hidden ones), boards that rank each player's best score or the sum of theirs, this week and all time, idempotent score and unlock posts, and guests adopted by the person who signs in. Boards and titles are public reads (CORS) and pages; people's rows are in the account export and erased with the account.",
+  "summary": "OpenVibe.Play — achievements and leaderboards for every OpenVibe game (Games ADR-0007 decision 10). A title is registered by its own principal (a game's service or app token), which alone writes to it: achievements (with hidden ones), boards that rank each player's best score, the sum of theirs or their fastest time in milliseconds, this week and all time, idempotent score and unlock posts, and guests adopted by the person who signs in. Boards and titles are public reads (CORS) and pages; people's rows are in the account export and erased with the account.",
   "works": [
     "Titles registered and updated by their own principal (play.title.manage); a definition left out is retired, never deleted; a board never changes kind",
     "Score posts to a board, idempotent by ref (up to 100 entries), and unlocks that answer the new ones (play.result.write)",
     "Guest adoption: a guest's unlocks and scores become the person's when they sign in",
     "Account merges (network.subject.merged): the folded account's unlocks, scores and saves become the survivor's in every title",
     "Cloud saves: up to 8 versioned slots per player per title (a stale write is refused), listed and deleted by the person at /me/saves",
-    "Boards: each player's best or total, this week (from Monday UTC) or all time, 25 a page, names and scores only",
+    "Boards: each player's best, total or fastest time (milliseconds, ascending), this week (from Monday UTC) or all time, 25 a page, names and scores only",
     "Pages: home (every game, this week's leaders), a title, a board, your achievements, the API docs, /updates",
     "Account export and deletion (ADR-033) at the loopback POST /internal/events, subscriptions created at boot"
   ],
@@ -39,7 +39,7 @@
   "features": [
     "titles",
     "achievements",
-    "leaderboards (best, sum; week, all time)",
+    "leaderboards (best, sum, time; week, all time)",
     "idempotent results",
     "guest adoption",
     "account merges",

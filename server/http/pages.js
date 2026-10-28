@@ -30,7 +30,7 @@ const pct = (part, whole) => (whole > 0 ? `${Math.round((part / whole) * 100)}%`
 /** The home's questions: shown on the page and given to search engines as FAQPage data (the same text). */
 const HOME_FAQ = [
     { q: 'Do players need an account?', a: 'No. A guest plays at once and appears on the boards as a guest. When they sign in with OpenVibe, the game moves their guest achievements and scores to their account.' },
-    { q: 'What does a leaderboard show?', a: "Rank, name and score, never a player id. Each board keeps a player's best score or their total, this week (from Monday, UTC) and all time, and anyone can read it as public JSON." },
+    { q: 'What does a leaderboard show?', a: "Rank, name and score, never a player id. Each board keeps a player's best score, their total, or their fastest time, this week (from Monday, UTC) and all time, and anyone can read it as public JSON." },
     { q: 'How do cloud saves avoid overwriting each other?', a: `A player has up to ${MAX_SLOTS} save slots per game, ${MAX_SAVE_BYTES / 1024} KB each. Every write names the version it read; if another device saved in between, the write is refused with play.save_conflict, so the game can merge instead of losing progress.` },
     { q: 'What happens when a game changes its achievements?', a: 'An achievement or board the game stops listing is retired, never deleted: what players earned stays on their profile.' },
     { q: 'How does a game use Play?', a: "Its server calls Play's API (or the openvibe-sdk/play client) with an OpenVibe token granted Play's capabilities. The app that registers a title is its only writer; posting the same round twice changes nothing." },
@@ -44,8 +44,8 @@ function homeFaqJsonLd() {
 function boardTable(b, { compact = false } = {}) {
     if (!b.entries.length) return html`<p class="pl-empty">${b.period === 'week' ? 'Nobody has scored this week yet.' : 'Nobody has scored yet.'}</p>`;
     return html`<table class="pl-board${compact ? ' pl-board-compact' : ''}"><caption class="pl-sr">${b.name}, ${b.period === 'week' ? 'this week' : 'all time'}</caption>
-<thead><tr><th scope="col">#</th><th scope="col">Player</th><th scope="col" class="pl-n">${b.kind === 'sum' ? 'Total' : 'Best'}</th></tr></thead>
-<tbody>${b.entries.map((e) => html`<tr><td class="pl-rank">${String(e.rank)}</td><td>${e.name}${e.signed_in ? '' : raw(' <span class="pl-guest" title="Playing as a guest">guest</span>')}</td><td class="pl-n">${num(e.score)}</td></tr>`)}</tbody></table>`;
+<thead><tr><th scope="col">#</th><th scope="col">Player</th><th scope="col" class="pl-n">${b.kind === 'sum' ? 'Total' : b.kind === 'time' ? 'Time' : 'Best'}</th></tr></thead>
+<tbody>${b.entries.map((e) => html`<tr><td class="pl-rank">${String(e.rank)}</td><td>${e.name}${e.signed_in ? '' : raw(' <span class="pl-guest" title="Playing as a guest">guest</span>')}</td><td class="pl-n">${num(e.score)}${b.kind === 'time' ? ' ms' : ''}</td></tr>`)}</tbody></table>`;
 }
 
 function achievementList(list, { players = 0 } = {}) {
@@ -111,7 +111,7 @@ ${raw(showcase.features({
                 lede: 'Four services, one OpenVibe account for every player, and nothing to host yourself.',
                 items: [
                     { title: 'Achievements', text: 'Define them once; unlocks are idempotent, secret ones show only as "A secret achievement", and retired ones stay on every profile.' },
-                    { title: 'Leaderboards', text: `Best score or total, this week and all time, ${PER_PAGE} to a page, readable by any site as public JSON.` },
+                    { title: 'Leaderboards', text: `Best score, total or fastest time, this week and all time, ${PER_PAGE} to a page, readable by any site as public JSON.` },
                     { title: 'Cloud saves', text: `${MAX_SLOTS} slots per player per game, ${MAX_SAVE_BYTES / 1024} KB each, with a version check so two devices never overwrite each other.`, href: '/docs' },
                     { title: 'Guests and accounts', text: 'Guests play at once; when they sign in, their unlocks and scores move to their account, and merged OpenVibe accounts keep both histories.' },
                 ],
@@ -121,7 +121,7 @@ ${raw(showcase.steps({
                 items: [
                     { title: 'Register the title', text: 'A game\'s server registers its title with its own OpenVibe token: its achievements and its boards. Yours starts in the sandbox.', href: '/docs#sandbox' },
                     { title: 'Post what happened', text: 'Scores for each round and the achievements a player unlocked, each idempotent, so a retry never counts twice.' },
-                    { title: 'Read the boards anywhere', text: 'Boards are public JSON for any page: a best score or a total, this week or all time.' },
+                    { title: 'Read the boards anywhere', text: 'Boards are public JSON for any page: a best score, a total or a fastest time, this week or all time.' },
                     { title: 'Guests count', text: 'A guest plays at once; when they sign in, the game moves their progress to their account.', href: '/docs' },
                 ],
             }))}
@@ -204,10 +204,10 @@ ${boards.length ? html`<section aria-labelledby="pl-boards-h"><h2 id="pl-boards-
         page(req, res, {
             canonicalPath: link({ page: pageNo }),
             index: !isSandbox(b.title), cache: PUBLIC_CACHE, title: `${b.name}, ${period === 'week' ? 'this week' : 'all time'} · ${b.title_name}`,
-            description: `The ${b.name} leaderboard of ${b.title_name}, ${period === 'week' ? 'this week' : 'all time'}: ${b.kind === 'sum' ? 'each player\'s total' : 'each player\'s best score'}.`,
+            description: `The ${b.name} leaderboard of ${b.title_name}, ${period === 'week' ? 'this week' : 'all time'}: ${b.kind === 'sum' ? 'each player\'s total' : b.kind === 'time' ? 'each player\'s fastest time' : 'each player\'s best score'}.`,
             body: html`<p class="pl-crumbs"><a href="/">Games</a> / <a href="/t/${b.title}">${b.title_name}</a> /</p>
 <h1>${b.name}</h1>
-<p class="pl-muted">${b.kind === 'sum' ? 'Each player\'s total' : 'Each player\'s best score'}${period === 'week' ? `, since Monday ${String(b.since || '').slice(0, 10)} (UTC)` : ', all time'}. ${plural(b.total, 'player', 'players')}.</p>
+<p class="pl-muted">${b.kind === 'sum' ? 'Each player\'s total' : b.kind === 'time' ? 'Each player\'s fastest time' : 'Each player\'s best score'}${period === 'week' ? `, since Monday ${String(b.since || '').slice(0, 10)} (UTC)` : ', all time'}. ${plural(b.total, 'player', 'players')}.</p>
 <nav class="pl-tabs" aria-label="Period">${period === 'week' ? html`<span aria-current="page">This week</span>` : html`<a href="${link({ period: 'week' })}">This week</a>`}${period === 'all' ? html`<span aria-current="page">All time</span>` : html`<a href="${link({ period: 'all' })}">All time</a>`}</nav>
 ${boardTable(b)}
 ${b.pages > 1 ? html`<nav class="pl-pages" aria-label="Pages">${pageNo > 1 ? html`<a href="${link({ page: pageNo - 1 })}" rel="prev">Previous</a>` : ''}<span>Page ${String(pageNo)} of ${String(b.pages)}</span>${pageNo < b.pages ? html`<a href="${link({ page: pageNo + 1 })}" rel="next">Next</a>` : ''}</nav>` : ''}`,
@@ -241,15 +241,15 @@ ${saves.length ? html`<section><h2>Your saves</h2><p class="pl-muted">What games
 <ul>
 <li><code>GET /titles</code>: every game, with its achievements (how many players have each) and its boards.</li>
 <li><code>GET /titles/:title</code>: one game.</li>
-<li><code>GET /titles/:title/boards/:board?period=week|all&amp;page=1</code>: 25 entries a page: <code>rank</code>, <code>name</code>, <code>score</code>, and whether the player was signed in. Never a player id.</li>
+<li><code>GET /titles/:title/boards/:board?period=week|all&amp;page=1</code>: 25 entries a page: <code>rank</code>, <code>name</code>, <code>score</code>, and whether the player was signed in; <code>unit</code> is <code>ms</code> on a time board and <code>points</code> otherwise. Never a player id.</li>
 <li><code>GET /people/:subject/achievements</code>: anyone, from any site: a person's unlocks in every game (what their profile shows).</li>
 <li><code>GET /me/achievements</code>: with a person's Network token, their own unlocks in every game.</li>
 </ul>
 <h2>Writing (the game's own token)</h2>
 <p>A game's server uses a Network service or app token for audience <code>openvibe.play</code>. Only the principal that registered a title writes to it; to anyone else the title does not exist.</p>
 <ul>
-<li><code>PUT /titles/:title</code> (<code>play.title.manage</code>): <code>{ name, url, summary, achievements: [{ id, name, description, hidden }], boards: [{ id, name, kind: "best" | "sum" }] }</code>. A definition left out is retired, never deleted: what players earned stays. A board's kind never changes.</li>
-<li><code>POST /titles/:title/scores</code> (<code>play.result.write</code>): <code>{ board, ref, entries: [{ player, name, score }] }</code>, up to 100 entries. <code>ref</code> names the round or run; posting it again changes nothing.</li>
+<li><code>PUT /titles/:title</code> (<code>play.title.manage</code>): <code>{ name, url, summary, achievements: [{ id, name, description, hidden }], boards: [{ id, name, kind: "best" | "sum" | "time" }] }</code>. A definition left out is retired, never deleted: what players earned stays. A board's kind never changes.</li>
+<li><code>POST /titles/:title/scores</code> (<code>play.result.write</code>): <code>{ board, ref, entries: [{ player, name, score }] }</code>, up to 100 entries. <code>ref</code> names the round or run; posting it again changes nothing. A <code>time</code> board's score is whole milliseconds from 0 to 86400000.</li>
 <li><code>POST /titles/:title/unlocks</code> (<code>play.result.write</code>): <code>{ player, achievements: [id] }</code>; answers the ones that were new.</li>
 <li><code>POST /titles/:title/players/:guest/adopt</code> (<code>play.result.write</code>): <code>{ person: "usr_…" }</code> when a guest signs in: their unlocks and scores become the person's.</li>
 <li><code>GET /titles/:title/players/:player/achievements</code> (<code>play.player.read</code>): a player's unlocks in your game.</li>

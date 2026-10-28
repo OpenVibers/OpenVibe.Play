@@ -34,10 +34,12 @@ const DEF_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 const PER_PAGE = 25;
 const MAX_ENTRIES = 100;
 const MAX_DEFS = 200;
+const MAX_TIME_MS = 86_400_000;
 const EARLIEST = Date.UTC(2020, 0, 1);
 const SANDBOX_PREFIX = 'sandbox-';
 const MAX_SANDBOX_TITLES = 3;
 const isSandbox = (titleId) => String(titleId || '').startsWith(SANDBOX_PREFIX);
+const unitOf = (kind) => (kind === 'time' ? 'ms' : 'points');
 
 class PlayError extends Error {
     constructor(status, code, detail) { super(detail || code); this.status = status; this.code = code; this.detail = detail; }
@@ -100,7 +102,7 @@ function createPlay({ s }) {
         if (url !== null && !/^https:\/\/[^\s]{3,300}$/.test(url)) fail(400, 'play.bad_title', 'url is an https address');
         const achievements = defsOf(doc.achievements, 'achievements', (d) => ({ description: str(d.description, 300), hidden: d.hidden === true }));
         const boards = defsOf(doc.boards, 'boards', (d, i) => {
-            if (!['best', 'sum'].includes(d.kind)) fail(400, 'play.bad_definitions', `boards[${i}].kind is best or sum`);
+            if (!['best', 'sum', 'time'].includes(d.kind)) fail(400, 'play.bad_definitions', `boards[${i}].kind is best, sum or time`);
             return { kind: d.kind };
         });
         const now = s.now();
@@ -153,7 +155,11 @@ function createPlay({ s }) {
         const at = when(post.at);
         const rows = entries.map((e, i) => {
             const score = e && e.score;
-            if (!Number.isSafeInteger(score) || score < 0) fail(400, 'play.bad_scores', `entries[${i}].score is a whole number, 0 or more`);
+            if (!Number.isSafeInteger(score) || score < 0 || (board.kind === 'time' && score > MAX_TIME_MS)) {
+                fail(400, 'play.bad_scores', board.kind === 'time'
+                    ? `entries[${i}].score is a whole number of milliseconds, 0 to ${MAX_TIME_MS}`
+                    : `entries[${i}].score is a whole number, 0 or more`);
+            }
             const name = str(e.name, 40);
             if (!name) fail(400, 'play.bad_scores', `entries[${i}].name is the name to show`);
             return [playerIn(titleId, e.player), name, score];
@@ -240,21 +246,28 @@ function createPlay({ s }) {
         if (!['all', 'week'].includes(period)) fail(400, 'play.bad_query', 'period is all or week');
         if (!Number.isSafeInteger(page) || page < 1 || page > 10_000) fail(400, 'play.bad_query', 'page is 1 or more');
         const since = period === 'week' ? weekStart(s.now()) : 0;
-        // A player's best score (best) or the sum of theirs (sum) in the period. A tie goes to whoever got there
-        // first: the earliest post of a best score, the earlier last post of a sum. The name shown is the newest one.
+        // A player's best score (best), the sum of theirs (sum), or their fastest time (time) in the period. A tie
+        // goes to whoever got there first: the earliest post of a best score or fastest time, the earlier last post of
+        // a sum (and, for a time at the same `at`, the earlier submission). The name shown is the newest one.
         const ranked = b.kind === 'sum'
             ? 'SELECT player, SUM(score)::bigint AS score, MAX(at) AS reached FROM s GROUP BY player'
-            : 'SELECT player, MAX(score)::bigint AS score, NULL::bigint AS reached FROM s GROUP BY player';
+            : b.kind === 'time'
+                ? 'SELECT player, MIN(score)::bigint AS score, NULL::bigint AS reached FROM s GROUP BY player'
+                : 'SELECT player, MAX(score)::bigint AS score, NULL::bigint AS reached FROM s GROUP BY player';
+        const order = b.kind === 'time' ? 'ASC' : 'DESC';
+        const timeTie = b.kind === 'time'
+            ? ', (SELECT MIN(seq) FROM s WHERE s.player = r0.player AND s.score = r0.score) AS reached_seq'
+            : '';
         const rows = await db.many(`WITH s AS (SELECT player, player_name, score, at, seq FROM play_scores WHERE title_id = $1 AND board_id = $2 AND at >= $3),
                 r0 AS (${ranked}),
                 r AS (SELECT r0.player, r0.score,
-                        COALESCE(r0.reached, (SELECT MIN(at) FROM s WHERE s.player = r0.player AND s.score = r0.score)) AS reached FROM r0)
+                        COALESCE(r0.reached, (SELECT MIN(at) FROM s WHERE s.player = r0.player AND s.score = r0.score)) AS reached${timeTie} FROM r0)
             SELECT r.player, r.score, r.reached, (SELECT player_name FROM s WHERE s.player = r.player ORDER BY at DESC, seq DESC LIMIT 1) AS name,
                 COUNT(*) OVER () AS total
-            FROM r ORDER BY r.score DESC, r.reached ASC, r.player ASC LIMIT $4 OFFSET $5`, [b.title_id, b.id, since, PER_PAGE, (page - 1) * PER_PAGE]);
+            FROM r ORDER BY r.score ${order}, r.reached ASC${b.kind === 'time' ? ', r.reached_seq ASC' : ''}, r.player ASC LIMIT $4 OFFSET $5`, [b.title_id, b.id, since, PER_PAGE, (page - 1) * PER_PAGE]);
         const total = rows.length ? Number(rows[0].total) : 0;
         return {
-            title: b.title_id, title_name: b.title_name, board: b.id, name: b.name, kind: b.kind, period, page,
+            title: b.title_id, title_name: b.title_name, board: b.id, name: b.name, kind: b.kind, unit: unitOf(b.kind), period, page,
             pages: Math.max(1, Math.ceil(total / PER_PAGE)), total, ...(period === 'week' ? { since: new Date(since).toISOString() } : {}),
             entries: rows.map((r, i) => ({ rank: (page - 1) * PER_PAGE + i + 1, name: r.name, score: Number(r.score), signed_in: r.player.startsWith('usr_') })),
         };
@@ -267,7 +280,8 @@ function createPlay({ s }) {
         const achievements = await db.many(`SELECT a.id, a.name, a.description, a.hidden, COUNT(u.player)::int AS unlocked_by
             FROM play_achievements a LEFT JOIN play_unlocks u ON u.title_id = a.title_id AND u.achievement_id = a.id
             WHERE a.title_id = $1 AND NOT a.retired GROUP BY a.title_id, a.id ORDER BY a.position, a.id`, [t.id]);
-        const boards = await db.many('SELECT id, name, kind FROM play_boards WHERE title_id = $1 AND NOT retired ORDER BY position, id', [t.id]);
+        const boards = (await db.many('SELECT id, name, kind FROM play_boards WHERE title_id = $1 AND NOT retired ORDER BY position, id', [t.id]))
+            .map((b) => ({ ...b, unit: unitOf(b.kind) }));
         return {
             id: t.id, name: t.name, url: t.url, summary: t.summary, players, ...(isSandbox(t.id) ? { sandbox: true } : {}),
             achievements: achievements.map((a) => (a.hidden
@@ -355,4 +369,4 @@ function createPlay({ s }) {
         putSave, getSave, listSaves, deleteSave, mySaves, deleteMySave };
 }
 
-module.exports = { createPlay, PlayError, PLAYER_RE, TITLE_RE, SLOT_RE, MAX_SLOTS, MAX_SAVE_BYTES, MAX_SANDBOX_TITLES, SANDBOX_PREFIX, isSandbox, weekStart, PER_PAGE };
+module.exports = { createPlay, PlayError, PLAYER_RE, TITLE_RE, SLOT_RE, MAX_SLOTS, MAX_SAVE_BYTES, MAX_TIME_MS, MAX_SANDBOX_TITLES, SANDBOX_PREFIX, isSandbox, weekStart, PER_PAGE };
