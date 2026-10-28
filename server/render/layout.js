@@ -22,12 +22,12 @@ const NETWORK_URL = 'https://openvibe.network';
 const SITE_NAME = 'OpenVibe.Play';
 const TAGLINE = 'Achievements, leaderboards and cloud saves';
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
-// The product's own navigation: one entry per public page it serves.
+// The product's own places: the main ones carry an icon (phones get them as the bottom tab bar), the rest fold into
+// the navbar's More (Shared 4.22). Search is the navbar's magnifier and What shipped is the footer's.
 const NAV = [
-    { label: 'Games', href: '/' },
-    { label: 'Your achievements', href: '/me' },
-    { label: 'For developers', href: '/docs' },
-    { label: 'What shipped', href: '/updates' },
+    { label: 'Games', href: '/', icon: 'fa-gamepad' },
+    { label: 'Your achievements', href: '/me', icon: 'fa-star' },
+    { label: 'For developers', href: '/docs', icon: 'fa-code', more: true },
 ];
 
 const hashes = new Map();
@@ -60,7 +60,8 @@ function renderPage(o) {
     const nav = {
         service: 'play',
         apiBase: NETWORK_URL,
-        links: NAV.map((l) => ({ label: l.label, href: l.href, active: pathNow === l.href || pathNow.startsWith(`${l.href}/`) })),
+        links: NAV.map((l) => ({ label: l.label, href: l.href, ...(l.icon ? { icon: l.icon } : {}), ...(l.more ? { more: true } : {}), active: pathNow === l.href || pathNow.startsWith(`${l.href}/`) })),
+        appBar: [{ label: 'Games', href: '/', icon: 'fa-gamepad' }, { label: 'Achievements', href: '/me', icon: 'fa-star' }, { label: 'Developers', href: '/docs', icon: 'fa-code' }],   // phones: the bottom tab bar (Shared 4.20)
         history: { type: 'page', title: o.title || SITE_NAME },
         silentLogin: `${o.config.baseUrl}/auth/login?silent=1&next={url}`,
         sessionUrl: '/auth/me',
