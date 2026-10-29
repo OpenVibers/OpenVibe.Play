@@ -85,8 +85,9 @@ function createPageRoutes(ctx) {
             accent: 'and cloud saves for every game.',
             lede: 'The game services behind OpenVibe games: achievements players keep, weekly and all-time leaderboards, and saves that follow them from device to device. Guests play at once; their progress moves to their OpenVibe account when they sign in.',
             actions: me
-                ? [{ label: 'Your achievements', href: '/me', primary: true }, { label: 'Read the API', href: '/docs' }, { label: 'Play on OpenVibe.Games', href: 'https://openvibe.games/' }]
-                : [{ label: 'Play on OpenVibe.Games', href: 'https://openvibe.games/', primary: true }, { label: 'Read the API', href: '/docs' }, { label: 'Sign in to see yours', href: '/auth/login?next=%2Fme' }],
+                // Two, so they sit side by side on a phone; the API is under "For game makers".
+                ? [{ label: 'Your achievements', href: '/me', primary: true }, { label: 'Play on OpenVibe.Games', href: 'https://openvibe.games/' }]
+                : [{ label: 'Play on OpenVibe.Games', href: 'https://openvibe.games/', primary: true }, { label: 'Sign in to see yours', href: '/auth/login?next=%2Fme' }],
             note: 'Boards show a name and a score, never a player id.',
             html: `<dl class="pl-stats">${stats.map(([dt, dd]) => `<div><dt>${dt}</dt><dd>${dd}</dd></div>`).join('')}</dl>`,
         });
@@ -106,7 +107,7 @@ ${leaders.has(t.id) ? html`<h4>This week: ${leaders.get(t.id).name}</h4>${boardT
 </section>
 ${popular.length ? html`<section class="pl-popular" aria-labelledby="pl-popular-h"><h2 id="pl-popular-h">Most earned</h2><p class="pl-muted">The achievements the most players have unlocked.</p>
 <ul class="pl-ach">${popular.map((a) => html`<li><span class="pl-ach-name">${a.name}</span>${a.description ? html`<span class="pl-ach-desc">${a.description}</span>` : ''}<span class="pl-ach-meta"><a href="/t/${a.game.id}">${a.game.name}</a> · ${plural(a.unlocked_by, 'player', 'players')}${a.game.players ? ` · ${pct(a.unlocked_by, a.game.players)}` : ''}</span></li>`)}</ul></section>` : ''}
-${raw(showcase.features({
+<section class="pl-makers" aria-labelledby="pl-makers-h"><details class="pl-fold"><summary><h2 id="pl-makers-h">For game makers</h2><span>what a game gets, the SDK, the limits</span></summary>${raw(showcase.features({
                 title: 'What a game gets',
                 lede: 'Four services, one OpenVibe account for every player, and nothing to host yourself.',
                 items: [
@@ -163,6 +164,7 @@ ${raw(showcase.limits({
                     { label: 'Requests per caller', values: [`${num(config.limits.minute)} a minute, ${num(config.limits.hour)} an hour`] },
                 ],
             }))}
+<p class="pl-fold-go"><a class="sc-btn" href="/docs">Read the API</a></p></details></section>
 <section class="pl-faq" aria-labelledby="pl-faq-h"><h2 id="pl-faq-h">Questions</h2>${HOME_FAQ.map((f) => html`<details><summary>${f.q}</summary><p>${f.a}</p></details>`)}</section>`,
         };
     }
