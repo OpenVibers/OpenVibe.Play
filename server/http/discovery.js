@@ -59,6 +59,7 @@ function createDiscoveryRoutes(ctx) {
     r.get('/robots.txt', (_req, res) => {
         res.type('text/plain').set('Cache-Control', TEXT).send(
             '# play.openvibe.network: the public pages are for search and AI crawlers; sign-in and the API are not.\n'
+            + '# Agent manifest: https://play.openvibe.network/.well-known/agent.json; every public page has a .md twin.\n'
             + seo.robotsTxt({ sitemaps: [abs('/sitemap.xml')], disallow: DISALLOW }));
     });
 

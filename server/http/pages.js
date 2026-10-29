@@ -62,9 +62,9 @@ function createPageRoutes(ctx) {
     const notFound = (req, res, what) => page(req, res, { title: 'Not found', body: html`<h1>Not found</h1><p>${what} <a href="/">See every game</a>.</p>` }, 404);
 
     // ── Home ─────────────────────────────────────────────────
-    r.get('/', async (req, res) => {
+    async function homePage({ signed = false } = {}) {
         const titles = await play.titles();
-        const me = signedIn(req);
+        const me = signed;
         const leaders = new Map();
         for (const t of titles) {
             if (t.boards.length) leaders.set(t.id, await play.board(t.id, t.boards[0].id, { period: 'week' }));
@@ -90,8 +90,8 @@ function createPageRoutes(ctx) {
             note: 'Boards show a name and a score, never a player id.',
             html: `<dl class="pl-stats">${stats.map(([dt, dd]) => `<div><dt>${dt}</dt><dd>${dd}</dd></div>`).join('')}</dl>`,
         });
-        page(req, res, {
-            index: true, cache: me ? null : PUBLIC_CACHE,
+        return {
+            agent: true, index: true, cache: me ? null : PUBLIC_CACHE,
             description: 'Game services for OpenVibe games: achievements, weekly and all-time leaderboards and cloud saves, with guests welcome and an SDK for developers.',
             jsonLd: [...homeJsonLd(config), homeFaqJsonLd()],
             styles: [showcase.STYLESHEET],
@@ -164,17 +164,18 @@ ${raw(showcase.limits({
                 ],
             }))}
 <section class="pl-faq" aria-labelledby="pl-faq-h"><h2 id="pl-faq-h">Questions</h2>${HOME_FAQ.map((f) => html`<details><summary>${f.q}</summary><p>${f.a}</p></details>`)}</section>`,
-        });
-    });
+        };
+    }
+    r.get('/', async (req, res) => page(req, res, await homePage({ signed: !!signedIn(req) })));
 
     // ── A title ──────────────────────────────────────────────
-    r.get('/t/:title', async (req, res) => {
-        const t = await play.title(req.params.title);
-        if (!t) return notFound(req, res, 'No game here.');
+    async function titlePage(title) {
+        const t = await play.title(title);
+        if (!t) return null;
         const boards = [];
         for (const b of t.boards) boards.push(await play.board(t.id, b.id, { period: 'week' }));
-        page(req, res, {
-            index: !t.sandbox, cache: PUBLIC_CACHE, title: `${t.name}: achievements and leaderboards`,
+        return {
+            agent: !t.sandbox, index: !t.sandbox, cache: PUBLIC_CACHE, title: `${t.name}: achievements and leaderboards`,
             description: `${t.name} on OpenVibe.Play: ${plural(t.achievements.length, 'achievement', 'achievements')} and ${plural(t.boards.length, 'leaderboard', 'leaderboards')}, this week and all time.`,
             body: html`<p class="pl-crumbs"><a href="/">Games</a> /</p>
 <h1>${t.name}</h1>
@@ -183,16 +184,19 @@ ${t.summary ? html`<p class="pl-lede">${t.summary}</p>` : ''}
 ${t.url ? html`<p><a class="pl-button" href="${t.url}">Play ${t.name}</a></p>` : ''}
 ${boards.length ? html`<section aria-labelledby="pl-boards-h"><h2 id="pl-boards-h">Leaderboards this week</h2>${boards.map((b) => html`<h3>${b.name}</h3>${boardTable({ ...b, entries: b.entries.slice(0, 10) })}<p><a href="/t/${t.id}/b/${b.board}?period=week">This week</a> · <a href="/t/${t.id}/b/${b.board}">All time</a></p>`)}</section>` : ''}
 <section aria-labelledby="pl-ach-h"><h2 id="pl-ach-h">Achievements</h2><p class="pl-muted">${plural(t.players, 'player has', 'players have')} unlocked at least one.</p>${achievementList(t.achievements, { players: t.players })}</section>`,
-        });
+        };
+    }
+    r.get('/t/:title', async (req, res) => {
+        const out = await titlePage(req.params.title);
+        if (!out) return notFound(req, res, 'No game here.');
+        page(req, res, out);
     });
 
     // ── A board ──────────────────────────────────────────────
-    r.get('/t/:title/b/:board', async (req, res) => {
-        const period = req.query.period === 'week' ? 'week' : 'all';
-        const pageNo = Math.max(1, Math.min(10_000, parseInt(req.query.page, 10) || 1));
+    async function boardPage(title, board, { period = 'all', page: pageNo = 1 } = {}) {
         let b;
-        try { b = await play.board(req.params.title, req.params.board, { period, page: pageNo }); } catch (err) {
-            if (err instanceof PlayError) return notFound(req, res, 'No board here.');
+        try { b = await play.board(title, board, { period, page: pageNo }); } catch (err) {
+            if (err instanceof PlayError) return null;
             throw err;
         }
         // All time is the board's plain address and this week is ?period=week: two pages, each its own canonical (the
@@ -201,7 +205,8 @@ ${boards.length ? html`<section aria-labelledby="pl-boards-h"><h2 id="pl-boards-
             const q = [(o.period || period) === 'week' ? 'period=week' : null, (o.page || 1) > 1 ? `page=${o.page}` : null].filter(Boolean);
             return `/t/${b.title}/b/${b.board}${q.length ? `?${q.join('&')}` : ''}`;
         };
-        page(req, res, {
+        return {
+            agent: !isSandbox(b.title),
             canonicalPath: link({ page: pageNo }),
             index: !isSandbox(b.title), cache: PUBLIC_CACHE, title: `${b.name}, ${period === 'week' ? 'this week' : 'all time'} · ${b.title_name}`,
             description: `The ${b.name} leaderboard of ${b.title_name}, ${period === 'week' ? 'this week' : 'all time'}: ${b.kind === 'sum' ? 'each player\'s total' : b.kind === 'time' ? 'each player\'s fastest time' : 'each player\'s best score'}.`,
@@ -211,7 +216,14 @@ ${boards.length ? html`<section aria-labelledby="pl-boards-h"><h2 id="pl-boards-
 <nav class="pl-tabs" aria-label="Period">${period === 'week' ? html`<span aria-current="page">This week</span>` : html`<a href="${link({ period: 'week' })}">This week</a>`}${period === 'all' ? html`<span aria-current="page">All time</span>` : html`<a href="${link({ period: 'all' })}">All time</a>`}</nav>
 ${boardTable(b)}
 ${b.pages > 1 ? html`<nav class="pl-pages" aria-label="Pages">${pageNo > 1 ? html`<a href="${link({ page: pageNo - 1 })}" rel="prev">Previous</a>` : ''}<span>Page ${String(pageNo)} of ${String(b.pages)}</span>${pageNo < b.pages ? html`<a href="${link({ page: pageNo + 1 })}" rel="next">Next</a>` : ''}</nav>` : ''}`,
-        });
+        };
+    }
+    r.get('/t/:title/b/:board', async (req, res) => {
+        const period = req.query.period === 'week' ? 'week' : 'all';
+        const pageNo = Math.max(1, Math.min(10_000, parseInt(req.query.page, 10) || 1));
+        const out = await boardPage(req.params.title, req.params.board, { period, page: pageNo });
+        if (!out) return notFound(req, res, 'No board here.');
+        page(req, res, out);
     });
 
     // ── Yours ────────────────────────────────────────────────
@@ -232,8 +244,8 @@ ${saves.length ? html`<section><h2>Your saves</h2><p class="pl-muted">What games
     });
 
     // ── For developers ───────────────────────────────────────
-    r.get('/docs', (req, res) => page(req, res, {
-        index: true, cache: PUBLIC_CACHE, title: 'The Play API',
+    function docsPage() { return {
+        agent: true, index: true, cache: PUBLIC_CACHE, title: 'The Play API',
         description: 'Register a game\'s achievements and leaderboards, post scores and unlocks, and read the boards: the OpenVibe.Play API.',
         body: html`<h1>The Play API</h1>
 <p class="pl-lede">A game registers its title with its own OpenVibe token, posts what its players did, and reads its boards. Base address: <code>https://play.openvibe.network/api/v1</code>. Errors are RFC 9457 problem+json with a stable <code>code</code>.</p>
@@ -269,13 +281,19 @@ ${saves.length ? html`<section><h2>Your saves</h2><p class="pl-muted">What games
 <li>Get a token for audience <code>openvibe.play</code> (client credentials) and <code>PUT /titles/sandbox-your-game</code>.</li>
 </ol>
 <p>A sandbox app registers up to ${String(MAX_SANDBOX_TITLES)} titles, each id starting with <code>sandbox-</code>, and deletes one with everything in it by <code>DELETE /titles/:title</code> (<code>play.title.manage</code>; a production title is never deleted) (anything else answers <code>400 play.sandbox_title</code>). Their players are guests only (<code>400 play.sandbox_guests_only</code> for a person), nothing is adopted, and they are never listed, counted or indexed: their pages and JSON answer at their id, marked <code>sandbox: true</code>, so you can check your boards. When your game is ready, staff turn production on for your project; its production app registers the real name and real players' progress counts on their profiles.</p>`,
-    }));
+    }; }
+    r.get('/docs', (req, res) => page(req, res, docsPage()));
 
-    r.get('/updates', (req, res) => page(req, res, {
-        index: true, cache: PUBLIC_CACHE,
+    const updatesPage = () => ({
+        agent: true, index: true, cache: PUBLIC_CACHE,
         title: `What shipped on ${SITE_NAME}`,
         body: raw(frame.updatesBody({ service: 'play', siteName: SITE_NAME }) + `<script src="${ovServe.url('shipped.js')}" defer></script>`),
-    }));
+    });
+    r.get('/updates', (req, res) => page(req, res, updatesPage()));
+
+    // The public pages the agent layer's Markdown twins (server/agent-pages.js) render with the same builders.
+    // A sandbox title's pages stay unwritten: they are not listed, not indexed and not advertised.
+    r.publicViews = { home: homePage, title: titlePage, board: boardPage, docs: docsPage, updates: updatesPage };
 
     // ── Discovery: robots.txt, sitemap.xml, llms.txt, llms-full.txt ──
     r.use(createDiscoveryRoutes(ctx));
