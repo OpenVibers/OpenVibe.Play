@@ -8,12 +8,12 @@
   "port": "5040",
   "domain": "play.openvibe.network",
   "contracts": "openvibe-contracts v0.222.0",
-  "sdk": "openvibe-sdk v0.67.0",
-  "shared": "openvibe-shared v4.43.0",
+  "sdk": "openvibe-sdk v0.73.0",
+  "shared": "openvibe-shared v4.48.0",
   "packages": [
     "openvibe-contracts v0.222.0",
-    "openvibe-sdk v0.67.0",
-    "openvibe-shared v4.43.0"
+    "openvibe-sdk v0.73.0",
+    "openvibe-shared v4.48.0"
   ],
   "summary": "OpenVibe.Play — achievements and leaderboards for every OpenVibe game (Games ADR-0007 decision 10). A title is registered by its own principal (a game's service or app token), which alone writes to it: achievements (with hidden ones), boards that rank each player's best score, the sum of theirs or their fastest time in milliseconds, this week and all time, idempotent score and unlock posts, and guests adopted by the person who signs in. Boards and titles are public reads (CORS) and pages; people's rows are in the account export and erased with the account.",
   "works": [
@@ -47,5 +47,5 @@
     "account export and deletion"
   ],
   "deployment": "openvibe-ovh: unit openvibe-play.service on 127.0.0.1:5040 (git checkout /opt/play.openvibe.network, env /etc/openvibe/play.env, database ov_play), deployed with `sudo ovhost deploy play`; nginx vhost from deploy/nginx (ov-vhost-install) on the openvibe.network wildcard certificate.",
-  "updated": "2026-10-29"
+  "updated": "2026-10-30"
 }
