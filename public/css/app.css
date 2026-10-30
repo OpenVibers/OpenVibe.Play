@@ -129,7 +129,7 @@ button.sc-btn.sc-primary { border: 0; }
    game label reach 44 px with a vertical-only hit area. */
 @media (pointer: coarse) {
   .pl-faq summary { min-height: 44px; }
-  .pl-card h3 a, .pl-ach-meta a { position: relative; }
-  .pl-card h3 a::after { content: ''; position: absolute; left: 0; right: 0; top: -10px; bottom: -10px; }
+  .pl-card h3 a, .pl-card p > a:only-child, .pl-ach-meta a { position: relative; }
+  .pl-card h3 a::after, .pl-card p > a:only-child::after { content: ''; position: absolute; left: 0; right: 0; top: -13px; bottom: -13px; }
   .pl-ach-meta a::after { content: ''; position: absolute; left: 0; right: 0; top: -15px; bottom: -15px; }
 }
