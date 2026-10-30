@@ -9,11 +9,11 @@
   "domain": "play.openvibe.network",
   "contracts": "openvibe-contracts v0.222.0",
   "sdk": "openvibe-sdk v0.74.0",
-  "shared": "openvibe-shared v4.53.0",
+  "shared": "openvibe-shared v4.54.0",
   "packages": [
     "openvibe-contracts v0.222.0",
     "openvibe-sdk v0.74.0",
-    "openvibe-shared v4.53.0"
+    "openvibe-shared v4.54.0"
   ],
   "summary": "OpenVibe.Play — achievements and leaderboards for every OpenVibe game (Games ADR-0007 decision 10). A title is registered by its own principal (a game's service or app token), which alone writes to it: achievements (with hidden ones), boards that rank each player's best score, the sum of theirs or their fastest time in milliseconds, this week and all time, idempotent score and unlock posts, and guests adopted by the person who signs in. Boards and titles are public reads (CORS) and pages; people's rows are in the account export and erased with the account.",
   "works": [
