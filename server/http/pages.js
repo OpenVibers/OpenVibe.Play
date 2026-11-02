@@ -89,7 +89,7 @@ function createPageRoutes(ctx) {
                 ? [{ label: 'Your achievements', href: '/me', primary: true }, { label: 'Play on OpenVibe.Games', href: 'https://openvibe.games/' }]
                 : [{ label: 'Play on OpenVibe.Games', href: 'https://openvibe.games/', primary: true }, { label: 'Sign in to see yours', href: '/auth/login?next=%2Fme' }],
             note: 'Boards show a name and a score, never a player id.',
-            html: `<dl class="pl-stats">${stats.map(([dt, dd]) => `<div><dt>${dt}</dt><dd>${dd}</dd></div>`).join('')}</dl>`,
+            html: `<dl class="pl-stats" tabindex="0" aria-label="Play in numbers">${stats.map(([dt, dd]) => `<div><dt>${dt}</dt><dd>${dd}</dd></div>`).join('')}</dl>`,
         });
         return {
             agent: true, index: true, cache: me ? null : PUBLIC_CACHE,
