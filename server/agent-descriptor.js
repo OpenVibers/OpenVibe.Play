@@ -10,6 +10,7 @@ module.exports = {
     site: 'play.openvibe.network',
     api: '/api/v1',
     docs: '/docs',
+    openapi: '/openapi.json',
     policy: {
         auth: ['none', 'Network OIDC', 'Network service token (Bearer, per game)'],
     },
