@@ -83,9 +83,12 @@ function createDiscoveryRoutes(ctx) {
                     ...t.boards.map((b) => ({ title: `${b.name}, this week`, url: abs(boardPath(t.id, b.id, 'week')) })),
                     ...t.boards.map((b) => ({ title: `${b.name} (JSON)`, url: abs(`/api/v1/titles/${t.id}/boards/${b.id}?period=all`) })),
                 ] })),
+                // A JSON API is what an agent came for, not something to skip (AGT-5 review).
+                { title: 'API', links: [
+                    { title: 'GET /api/v1/titles', url: abs('/api/v1/titles'), note: 'every game, its achievements and boards' },
+                ] },
             ],
             optional: [
-                { title: 'GET /api/v1/titles', url: abs('/api/v1/titles'), note: 'every game, its achievements and boards' },
                 { title: 'Sitemap', url: abs('/sitemap.xml') },
                 { title: 'Full text for language models', url: abs('/llms-full.txt') },
                 { title: 'Release metadata (JSON)', url: abs('/release.json') },
