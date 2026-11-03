@@ -36,6 +36,8 @@ const { boot, check, done } = require('./helpers/boot');
             assert.match(r.text, /^# OpenVibe\.Play/m);
             assert.match(r.text, /Scraplandia: achievements and leaderboards/);
             assert.match(r.text, /\/api\/v1\/titles\/scraplandia\/boards\/haul\?period=all/);
+            assert.ok(r.text.includes('(https://play.openvibe.network/index.md)'), 'home link points at its Markdown twin');
+            assert.ok(r.text.includes('\n## Optional\n'), 'llms.txt has an Optional section');
         });
 
         await check('llms-full.txt spells out the visible achievements, never a secret one', async () => {

@@ -71,29 +71,27 @@ function createDiscoveryRoutes(ctx) {
             details: 'Each OpenVibe game registers its achievements and leaderboards here with its own token and posts what its '
                 + 'players did; the boards are public. A player is a person with an OpenVibe account or a guest of the game. '
                 + 'Every page is server-rendered and readable without JavaScript.',
+            markdown: true,
+            base: site,
             sections: [
                 { title: 'Start here', links: [
                     { title: 'OpenVibe.Play', url: abs('/'), note: 'every game and this week\'s leaders' },
                     { title: 'The Play API', url: abs('/docs') },
-                    { title: 'What shipped on OpenVibe.Play', url: abs('/updates') },
                 ] },
                 ...titles.map((t) => ({ title: t.name, links: [
                     { title: `${t.name}: achievements and leaderboards`, url: abs(`/t/${t.id}`), note: `${plural(t.achievements.length, 'achievement', 'achievements')}` },
                     ...t.boards.map((b) => ({ title: `${b.name}, this week`, url: abs(boardPath(t.id, b.id, 'week')) })),
                     ...t.boards.map((b) => ({ title: `${b.name} (JSON)`, url: abs(`/api/v1/titles/${t.id}/boards/${b.id}?period=all`) })),
                 ] })),
-                { title: 'API', links: [
-                    { title: 'GET /api/v1/titles', url: abs('/api/v1/titles'), note: 'every game, its achievements and boards' },
-                ] },
-                { title: 'Machine-readable', links: [
-                    { title: 'Sitemap', url: abs('/sitemap.xml') },
-                    { title: 'Full text for language models', url: abs('/llms-full.txt') },
-                    { title: 'Release metadata (JSON)', url: abs('/release.json') },
-                ] },
-                { title: 'Elsewhere', links: [
-                    { title: 'OpenVibe.Games', url: 'https://openvibe.games', note: 'play the games' },
-                    { title: 'OpenVibe.Network', url: 'https://openvibe.network', note: 'accounts, apps and grants' },
-                ] },
+            ],
+            optional: [
+                { title: 'GET /api/v1/titles', url: abs('/api/v1/titles'), note: 'every game, its achievements and boards' },
+                { title: 'Sitemap', url: abs('/sitemap.xml') },
+                { title: 'Full text for language models', url: abs('/llms-full.txt') },
+                { title: 'Release metadata (JSON)', url: abs('/release.json') },
+                { title: 'OpenVibe.Games', url: 'https://openvibe.games', note: 'play the games' },
+                { title: 'OpenVibe.Network', url: 'https://openvibe.network', note: 'accounts, apps and grants' },
+                { title: 'What shipped on OpenVibe.Play', url: abs('/updates') },
             ],
         }));
     });
