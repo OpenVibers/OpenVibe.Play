@@ -142,27 +142,22 @@ const DAY = 86_400_000;
             assert.strictEqual((await t.get('/api/v1/people/not-a-subject/achievements')).status, 404);
         });
 
-        await check('the pages: home, a title, a board with its tabs, the docs, and llms.txt name the game', async () => {
-            const home = await t.get('/');
-            assert.strictEqual(home.status, 200);
-            assert.match(home.text, /Salvage Rush/);
-            const title = await t.get('/t/salvage-rush');
-            assert.match(title.text, /<h1>Salvage Rush<\/h1>/);
-            assert.match(title.text, /A secret achievement/);
-            assert.doesNotMatch(title.text, /Nobody knows/, 'a secret achievement\'s text never shows');
-            const board = await t.get('/t/salvage-rush/b/best?period=week');
-            assert.match(board.text, /aria-current="page">This week</);
-            // Each period is its own page: the week board names itself, all time is the plain address.
-            assert.match(board.text, /<link rel="canonical" href="[^"]*\/t\/salvage-rush\/b\/best\?period=week">/);
-            const allTime = await t.get('/t/salvage-rush/b/best?period=all');
-            assert.match(allTime.text, /<link rel="canonical" href="[^"]*\/t\/salvage-rush\/b\/best">/);
-            assert.match(allTime.text, /<a href="\/t\/salvage-rush\/b\/best\?period=week">This week<\/a>/);
-            assert.doesNotMatch(board.text, /usr_|guest:/);
-            assert.strictEqual((await t.get('/t/nope')).status, 404);
-            assert.strictEqual((await t.get('/t/salvage-rush/b/nope')).status, 404);
-            assert.match((await t.get('/docs')).text, /POST \/titles\/:title\/scores/);
-            assert.match((await t.get('/llms.txt')).text, /Salvage Rush: achievements and leaderboards/);
-            assert.match((await t.get('/sitemap.xml')).text, /\/t\/salvage-rush\/b\/best\?period=week/);
+        await check('the player pages moved to OpenVibe.Games; llms.txt says where and keeps the API links', async () => {
+            for (const [from, to] of [
+                ['/', 'https://openvibe.games/achievements'],
+                ['/t/salvage-rush', 'https://openvibe.games/play?game=salvage-rush'],
+                ['/t/salvage-rush/b/best?period=week', 'https://openvibe.games/leaderboards?game=salvage-rush&board=best&period=week'],
+                ['/docs', 'https://openvibe.games/developers'],
+            ]) {
+                const r = await t.get(from);
+                assert.strictEqual(r.status, 301, from);
+                assert.strictEqual(r.headers.get('location'), to, from);
+            }
+            const llms = await t.get('/llms.txt');
+            assert.match(llms.text, /https:\/\/openvibe\.games\/achievements/);
+            assert.match(llms.text, /https:\/\/openvibe\.games\/leaderboards/);
+            assert.match(llms.text, /https:\/\/openvibe\.games\/developers/);
+            assert.match(llms.text, /https:\/\/play\.openvibe\.network\/api\/v1\/titles/);
         });
     } finally { await t.close(); }
     done();

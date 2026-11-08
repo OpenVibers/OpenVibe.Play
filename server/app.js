@@ -4,13 +4,14 @@
  * OpenVibe.Play — Express app factory; server/index.js listens, tests build their own instance with a temp database
  * and a mock Network.
  *
- *   /, /t/:title, /me, /docs, /updates                the pages (http/pages.js)
  *   /api/v1/*                                         the API (http/api.js)
  *   /auth/*                                           Network SSO with PKCE (auth/sso.js)
  *   /api/health, /api/ready, /release.json, /metrics  (loopback only)
+ *   /, /t/:title, /me, /docs, /updates                301 to the OpenVibe.Games pages (http/moved.js)
  *
- * The product is play/store.js (titles, achievements, leaderboards) behind http/api.js and http/pages.js; the plumbing
- * here (helmet, SSO, legal pages, static assets, the API mount, the 404 and the error handler) is the network's.
+ * The product is play/store.js (titles, achievements, leaderboards) behind http/api.js; the pages that used to be
+ * here are part of OpenVibe.Games now. The plumbing (helmet, SSO, legal pages, static assets, the API mount, the
+ * discovery files, the 404 and the error handler) is the network's.
  */
 const path = require('path');
 const express = require('express');
@@ -26,15 +27,15 @@ const { createKeyStore } = require('./auth/keys');
 const { createSso } = require('./auth/sso');
 const { createPrincipal } = require('./http/principal');
 const { createApi } = require('./http/api');
-const { createPageRoutes } = require('./http/pages');
+const { createDiscoveryRoutes } = require('./http/discovery');
+const { createMovedRoutes } = require('./http/moved');
 const { createServiceReadiness } = require('./observability');
 const { createCallerLimits } = require('./http/caller-limits');
 const { createNetworkSender } = require('openvibe-sdk/account-data');
 const { createPlay } = require('./play/store');
 const subjectMerge = require('./play/subject-merge');
 const accountDataLib = require('./play/account-data');
-const { assetVersion, send } = require('./render/layout');
-const { html } = require('./render/html');
+const { assetVersion } = require('./render/layout');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const VERSION = require('../package.json').version;
@@ -182,24 +183,23 @@ async function createApp(opts = {}) {
     app.use('/api/v1', createApi(ctx));
     app.use('/api', (req, res) => contracts.http.sendProblem(res, 404, 'route.not_found', { detail: 'No such API route', ctx: req.ov }));
 
-    // ── Pages ───────────────────────────────────────────────
-    app.use(rateLimit({ windowMs: 60_000, limit: Number(process.env.PLAY_RATE_LIMIT_PER_MIN) || 300, standardHeaders: true, legacyHeaders: false }));
-    const pageRoutes = createPageRoutes(ctx);
-    // The agent layer (openvibe-shared/agent-layer): /.well-known/agent.json and the Markdown twins of the public
-    // pages. The pages keep their own routes — a signed-in person's progress is theirs — so only the manifest and
-    // twin requests reach this mount; the pages advertise the twin themselves.
+    // ── Crawl files and the moved pages ─────────────────────
+    // The player pages are on openvibe.games now. The crawl files answer first (robots.txt, llms.txt) and the old
+    // page addresses 301 to their counterparts; every /api/v1 route above stays exactly where it is. The agent
+    // manifest still says what this host offers (the API and its guide); the pages' Markdown twins moved with them.
     const agentLayer = express();
     require('openvibe-shared/agent-layer').mount(agentLayer, {
         descriptor: require('./agent-descriptor'),
-        render: require('./agent-pages').createAgentPages(ctx, pageRoutes.publicViews).renderPublicPage,
+        render: async () => null,
     });
     app.use((req, res, next) => {
-        const twin = req.path.endsWith('.md') || req.query.format === 'markdown' || String(req.headers.accept || '').includes('text/markdown');
-        if (req.path !== '/.well-known/agent.json' && !twin) return next();
-        return agentLayer(req, res, next);
+        if (req.path === '/.well-known/agent.json') return agentLayer(req, res, next);
+        return next();
     });
-    app.use(pageRoutes);
-    app.use((req, res) => send(res, 404, { viewer: req.viewer, config, path: req.originalUrl, title: 'Not found', body: html`<h1>Not found</h1><p>No page here. Try <a href="/">the home page</a> or <a href="/updates">the update log</a>.</p>` }));
+    app.use(createDiscoveryRoutes());
+    app.use(rateLimit({ windowMs: 60_000, limit: Number(process.env.PLAY_RATE_LIMIT_PER_MIN) || 300, standardHeaders: true, legacyHeaders: false }));
+    app.use(createMovedRoutes());
+    app.use((req, res) => res.status(404).type('text/plain').send('Not found. The player pages are on openvibe.games; the API is at /api/v1.'));
 
     // eslint-disable-next-line no-unused-vars
     app.use((err, req, res, _next) => {

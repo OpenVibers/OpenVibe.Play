@@ -50,18 +50,14 @@ const CAPS = ['play.title.manage', 'play.result.write', 'play.player.read'];
             assert.strictEqual((await save(G1)).status, 200);
         });
 
-        await check('a sandbox title is never listed or indexed, and answers at its id', async () => {
+        await check('a sandbox title is never listed, and its API still answers at its id', async () => {
             const listed = (await t.get('/api/v1/titles')).json().titles.map((x) => x.id);
             assert.ok(listed.includes('gem-run') && !listed.some((id) => id.startsWith('sandbox-')), listed.join(','));
             assert.strictEqual((await t.get('/api/v1/titles/sandbox-gem-run')).json().title.sandbox, true);
-            const pageOf = await t.get('/t/sandbox-gem-run');
-            assert.strictEqual(pageOf.status, 200);
-            assert.match(pageOf.text, /<meta name="robots" content="noindex/);
-            assert.match(pageOf.text, /Sandbox: a developer is trying Play/);
-            assert.match((await t.get('/t/sandbox-gem-run/b/best')).text, /<meta name="robots" content="noindex/);
-            assert.match((await t.get('/t/gem-run')).text, /<meta name="robots" content="index/);
-            assert.ok(!(await t.get('/')).text.includes('sandbox-gem-run'), 'not on the home');
-            assert.ok(!(await t.get('/sitemap.xml')).text.includes('sandbox-'), 'not in the sitemap');
+            // The player pages moved to Games; the API did not, and a sandbox title is still readable by its app.
+            assert.strictEqual((await t.get('/t/sandbox-gem-run')).status, 301);
+            assert.strictEqual((await t.get('/t/gem-run')).status, 301);
+            assert.strictEqual((await t.get('/t/sandbox-gem-run/b/best')).status, 301);
         });
 
         await check('a sandbox title is deleted by its app with everything in it; a production title never', async () => {
@@ -70,15 +66,13 @@ const CAPS = ['play.title.manage', 'play.result.write', 'play.player.read'];
             assert.deepStrictEqual(await code(del('sandbox-gem-run', production)), [404, 'play.unknown_title'], 'another app is told it does not exist');
             assert.strictEqual((await del('sandbox-gem-run', sandbox)).status, 204);
             assert.strictEqual((await t.get('/api/v1/titles/sandbox-gem-run')).status, 404);
-            assert.strictEqual((await t.get('/t/sandbox-gem-run/b/best')).status, 404, 'its boards went with it');
             assert.strictEqual((await put('sandbox-four', sandbox)).status, 201, 'the room it took is free again');
         });
 
-        await check('the docs and the home say how to start', async () => {
+        await check('the API guide moved to the Games developers page', async () => {
             const docs = await t.get('/docs');
-            assert.match(docs.text, /<h2 id="sandbox">Your own game: start in the sandbox<\/h2>/);
-            assert.match(docs.text, /https:\/\/openvibe\.services\/projects/);
-            assert.match((await t.get('/')).text, /Can I add my own game\?/);
+            assert.strictEqual(docs.status, 301);
+            assert.strictEqual(docs.headers.get('location'), 'https://openvibe.games/developers');
         });
     } finally { await t.close(); }
     done();
