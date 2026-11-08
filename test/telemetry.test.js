@@ -21,13 +21,13 @@ const path = require('path');
     const t = await boot({ telemetrySink: async (batch) => { samples.push(...batch); } });
     const requests = () => samples.filter((s) => s.operation === 'http.request');
     try {
-        await check('five hits on the home page flush as one http.request sample: template, 2xx, count 5', async () => {
-            for (let i = 0; i < 5; i++) assert.strictEqual((await t.get('/')).status, 200);
+        await check('five hits on an API route flush as one http.request sample: template, 2xx, count 5', async () => {
+            for (let i = 0; i < 5; i++) assert.strictEqual((await t.get('/api/v1/ping')).status, 200);
             await t.ctx.telemetry.flush();
-            const home = requests().filter((s) => s.resource === '/' && s.status === '2xx');
-            assert.strictEqual(home.length, 1, JSON.stringify(requests()));
-            assert.strictEqual(home[0].service, 'play');
-            assert.strictEqual(home[0].extra.count, 5);
+            const page = requests().filter((s) => s.resource === '/api/v1/ping' && s.status === '2xx');
+            assert.strictEqual(page.length, 1, JSON.stringify(requests()));
+            assert.strictEqual(page[0].service, 'play');
+            assert.strictEqual(page[0].extra.count, 5);
         });
 
         await check('/metrics and a /shared file make no sample', async () => {

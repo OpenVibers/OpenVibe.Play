@@ -86,8 +86,7 @@ function renderPage(o) {
         description: o.description || `${SITE_NAME} — ${TAGLINE}`,
         canonical,
         robots: o.index ? 'index, follow' : 'noindex, nofollow',
-        // A page with a Markdown twin (o.agent) advertises it in the head and the Link header; the twin itself
-        // is server/agent-pages.js.
+        // A page with a Markdown twin (o.agent) advertises it in the head and the Link header.
         agentLayer: o.agent === true,
         llms: `${String(o.config.baseUrl).replace(/\/+$/, '')}/llms.txt`,
         jsonLd: (o.jsonLd || []).filter(Boolean),

@@ -38,7 +38,7 @@ function files(dir) {
     const t = await boot();
     await check('a whole session (sign-in, every page, the API) never sends an internal key to Network', async () => {
         const u = t.network.addUser('nia');
-        for (const p of ['/', '/updates', '/api/v1/ping', '/auth/me']) await t.get(p, { as: u });
+        for (const p of ['/llms.txt', '/api/v1/ping', '/auth/me']) await t.get(p, { as: u });
         const sent = t.network.requests.filter((r) => r.headers['x-internal-key']);
         assert.strictEqual(sent.length, 0);
     });

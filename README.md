@@ -48,7 +48,7 @@ game, to the player's account page and to any page that wants a board.
 - Titles, their achievement definitions and their boards (`play_titles`, `play_achievements`, `play_boards`).
 - Unlocks, scores and cloud saves per player (`play_unlocks`, `play_scores`, `play_saves`), guest adoption, and the merges applied
   (`play_subject_merges`).
-- The public pages at play.openvibe.network and the `/api/v1` read and write API.
+- The `/api/v1` read and write API. The player pages now live on OpenVibe.Games (achievements, leaderboards, developers); every old page at play.openvibe.network answers 301 to its counterpart there, and the API stays here.
 - Request telemetry (`telemetry_samples`, `0003_telemetry.sql`): each HTTP request aggregated by route template, method, status class,
   never by raw URL; `/shared`, static assets, health, readiness and `/metrics` are not counted. `server/app.js` builds the collector,
   `server/index.js` flushes per key one `http.request` sample plus the active-requests, p95 latency and event-loop-lag gauges each
@@ -84,11 +84,11 @@ exist. Reads of titles and boards are public.
 
 Tested in `test/` (`npm test`, every file in its own process on PGlite; `npm run test:pg` on PostgreSQL):
 `play-api.test.js` (titles, owner-only writes, idempotent scores, best and sum boards with the Monday week, guest
-adoption, secret achievements, retired definitions, a person's own achievements, the pages), `time-boards.test.js`
+adoption, secret achievements, retired definitions, a person's own achievements, the API), `moved-pages.test.js`
+(the page redirects and the crawl files), `time-boards.test.js`
 (time boards, their ties, validation and units), `time-migration.test.js` (the kind CHECK widening over existing
 boards), `account-data.test.js`
-(export, erasure and account merges), the auth, limits, discovery, layout, open-redirect, nginx and security tests, and
-the home page's size budget.
+(export, erasure and account merges), the auth, limits, redirects, open-redirect, nginx and security tests.
 
 ## Security
 
@@ -140,7 +140,8 @@ server/play/store.js         titles, achievements, boards, scores, unlocks, adop
 server/play/account-data.js  account export and deletion (ADR-033)
 server/play/subject-merge.js account merges (ADR-029)
 server/http/api.js           /api/v1
-server/http/pages.js         the pages; discovery.js robots.txt, sitemap.xml, llms.txt
+server/http/moved.js         the old page addresses, 301 to OpenVibe.Games
+server/http/discovery.js     robots.txt and llms.txt (sitemap.xml and llms-full.txt redirect to Games)
 migrations/                  the schema (0001 the store, 0002 the merges applied)
 ```
 

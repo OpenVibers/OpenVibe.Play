@@ -108,14 +108,18 @@ const cookieHeader = (res) => res.headers.getSetCookie().map((c) => c.split(';')
         assert.notStrictEqual(proxied.status, 200, 'a proxied request is not loopback');
     });
 
-    await check('public pages are complete without JavaScript (noscript nav, SSR footer)', async () => {
-        for (const p of ['/', '/updates']) {
-            const r = await t.get(p);
-            assert.strictEqual(r.status, 200, p);
-            assert.match(r.text, /<noscript><nav/);
-            assert.match(r.text, /<footer id="ov-footer"/);
-            assert.match(r.text, /<main id="main"/);
+    await check('the old player pages 301 to OpenVibe.Games; the API is still complete without JavaScript', async () => {
+        for (const [from, to] of [
+            ['/', 'https://openvibe.games/achievements'],
+            ['/updates', 'https://openvibe.games/updates'],
+        ]) {
+            const r = await t.get(from);
+            assert.strictEqual(r.status, 301, from);
+            assert.strictEqual(r.headers.get('location'), to, from);
         }
+        const ping = await t.get('/api/v1/ping');
+        assert.strictEqual(ping.status, 200);
+        assert.deepStrictEqual(ping.json(), { ok: true, service: 'play' });
     });
 
     await check('the API answers /ping and unknown routes are problem+json 404', async () => {
