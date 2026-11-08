@@ -83,7 +83,7 @@ function createPageRoutes(ctx) {
             eyebrow: `${SITE_NAME} · part of OpenVibe Services`,
             title: 'Achievements, leaderboards',
             accent: 'and cloud saves for every game.',
-            lede: 'The game services behind OpenVibe games: achievements players keep, weekly and all-time leaderboards, and saves that follow them from device to device. Guests play at once; their progress moves to their OpenVibe account when they sign in.',
+            lede: 'The game services behind OpenVibe games. Guests play at once, and their progress moves to their OpenVibe account when they sign in.',
             actions: me
                 // Two, so they sit side by side on a phone; the API is under "For game makers".
                 ? [{ label: 'Your achievements', href: '/me', primary: true }, { label: 'Play on OpenVibe.Games', href: 'https://openvibe.games/' }]
