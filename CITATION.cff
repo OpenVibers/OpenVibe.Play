@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use OpenVibe.Play in research or a product, cite it as below."
+title: openvibe-play
+type: software
+authors:
+  - name: OpenVibe
+    alias: OpenVibers
+    website: https://openvibe.network
+repository-code: https://github.com/OpenVibers/OpenVibe.Play
+url: https://play.openvibe.network
+license: AGPL-3.0-only
+abstract: "Achievements and leaderboards for every OpenVibe game, at play.openvibe.network."
+keywords:
+  - openvibe
+  - achievements
+  - api
+  - games
+  - gamification

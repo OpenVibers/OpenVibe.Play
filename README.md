@@ -2,6 +2,9 @@
 
 **Achievements, leaderboards and cloud saves for every OpenVibe game.** https://play.openvibe.network
 
+**Live site:** https://play.openvibe.network · **API docs:** https://openvibe.services · **For AI:** https://play.openvibe.network/llms.txt
+**Run it:** `npm ci && npm run dev` (Node 22 or newer) · **Tests:** `npm test`
+
 OpenVibe.Play is the network's game services (OpenVibe.Games [ADR-0007](https://github.com/OpenVibers/OpenVibe.Games/blob/main/docs/adr/0007-rewrite-the-moddable-base.md)
 decision 10). A game registers its **title** with its own OpenVibe token, posts what its players did, and anyone reads
 its boards. The rules of each game stay in the game; Play keeps the record and answers it.
