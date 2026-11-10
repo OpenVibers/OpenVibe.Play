@@ -11,8 +11,6 @@
  *   adopt(owner, titleId, guest, person)   move a guest's unlocks and scores to the person who signed in
  *   putSave / getSave / listSaves / deleteSave (owner, titleId, player, slot…)   a player's cloud save slots in a title
  *   mySaves(person) / deleteMySave(person, titleId, slot)                        a person's own slots, every title
- *   mergeSubject({ mergeId, from, into })  network.subject.merged: the folded account's rows, in every title, become the
- *                                          survivor's (once per merge)
  *   board(titleId, boardId, { period, page })  ranked entries: name and score, never a player id
  *   title(id) / titles()                   the public definitions, with how many players unlocked each achievement
  *   playerAchievements(player, { titleId })    a player's unlocks across titles (or in one)
@@ -229,16 +227,6 @@ function createPlay({ s }) {
         return { unlocks, scores, saves };
     }
 
-    async function mergeSubject({ mergeId, from, into }) {
-        return await s.tx(async () => {
-            if (await db.maybe('SELECT 1 FROM play_subject_merges WHERE merge_id = $1', [mergeId])) return { already: true, unlocks: 0, scores: 0 };
-            const moved = await moveRows(null, from, into);
-            await db.exec('INSERT INTO play_subject_merges (merge_id, from_subject, into_subject, unlocks, scores, merged_at) VALUES ($1, $2, $3, $4, $5, $6)',
-                [mergeId, from, into, moved.unlocks, moved.scores, s.now()]);
-            return { already: false, ...moved };
-        });
-    }
-
     async function board(titleId, boardId, { period = 'all', page = 1 } = {}) {
         const b = await db.maybe(`SELECT b.*, t.name AS title_name FROM play_boards b JOIN play_titles t ON t.id = b.title_id
             WHERE b.title_id = $1 AND b.id = $2`, [String(titleId || ''), String(boardId || '')]);
@@ -365,7 +353,7 @@ function createPlay({ s }) {
         return (await db.exec('DELETE FROM play_saves WHERE title_id = $1 AND player = $2 AND slot = $3', [titleId, player(person), slotOf(slot)])) > 0;
     }
 
-    return { define, removeSandbox, recordScores, unlock, adopt, mergeSubject, board, title, titles, playerAchievements, ownTitle,
+    return { define, removeSandbox, recordScores, unlock, adopt, board, title, titles, playerAchievements, ownTitle,
         putSave, getSave, listSaves, deleteSave, mySaves, deleteMySave };
 }
 

@@ -8,7 +8,6 @@ const { createApp } = require('./app');
 const { gracefulStop } = require('openvibe-sdk/service');
 const { startTelemetryRetention } = require('openvibe-sdk/telemetry');
 const { startSubscriptions, TOPICS } = require('openvibe-sdk/account-data');
-const subjectMerge = require('./play/subject-merge');
 
 /**
  * The process stop (openvibe-sdk/service): the HTTP drain runs, then the timers clear, the Events subscriptions stop,
@@ -40,11 +39,11 @@ async function start() {
     ctx.telemetryTick = setInterval(() => { ctx.telemetry.flush().catch(() => {}); }, 60_000);
     ctx.telemetryTick.unref();
     ctx.keys.client.start();
-    // The account subscriptions at OpenVibe.Events (ADR-033) and account merges (ADR-029), created when missing; off
+    // The account subscriptions at OpenVibe.Events (ADR-033), created when missing; off
     // without EVENTS_URL, PLAY_EVENTS_SECRET or the client secret.
     const subscriptions = startSubscriptions({
         eventsUrl: config.events.url, endpoint: `http://127.0.0.1:${config.port}/internal/events`, secret: config.events.secrets[0],
-        topics: [...TOPICS, subjectMerge.TOPIC],
+        topics: [...TOPICS],
         networkInternalUrl: config.networkInternalUrl, clientId: config.oauth.clientId, clientSecret: config.oauth.clientSecret,
     });
     createLifecycle({ server, ctx, extra: [() => { if (subscriptions) subscriptions.stop(); }] });
