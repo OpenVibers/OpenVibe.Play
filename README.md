@@ -24,7 +24,7 @@ its boards. The rules of each game stay in the game; Play keeps the record and a
   Monday 00:00 UTC) or all time, 25 a page, and a tie goes to whoever got there first. A board's `unit` says what its
   scores mean: `"ms"` for `time`, `"points"` for the others.
 - **Players** are people (`usr_…`) or guests a game names (`guest:<opaque>`). When a guest signs in, the game adopts
-  them and their unlocks and scores become the person's. When two OpenVibe accounts are merged (`network.subject.merged`),
+  them and their unlocks and scores become the person's.
   the folded account's unlocks and scores become the survivor's in every title.
 - **Cloud saves** (`migrations/0004_saves.sql`): a player's progress follows them to any device. Up to 8 slots per
   player per title, each any JSON value of at most 64 KB, versioned: a write names the version it read and a stale one
@@ -68,7 +68,7 @@ game, to the player's account page and to any page that wants a board.
 
 - **OpenVibe.Network:** service and app tokens (audience `openvibe.play`), the JWKS that verifies them, grants for the
   `play.*` capabilities, and person sign-in for "your achievements".
-- **OpenVibe.Events:** the account subscriptions (export, deletion, `network.subject.merged`), created at boot when
+- **OpenVibe.Events:** the account subscriptions (export and deletion), created at boot when
   `EVENTS_URL`, `PLAY_EVENTS_SECRET` and the client secret are set.
 - **PostgreSQL** (`ov_play`; embedded PGlite in development and tests), Valkey for per-caller limits when configured.
 
@@ -91,7 +91,7 @@ adoption, secret achievements, retired definitions, a person's own achievements,
 (the page redirects and the crawl files), `time-boards.test.js`
 (time boards, their ties, validation and units), `time-migration.test.js` (the kind CHECK widening over existing
 boards), `account-data.test.js`
-(export, erasure and account merges), the auth, limits, redirects, open-redirect, nginx and security tests.
+(export and erasure), the auth, limits, redirects, open-redirect, nginx and security tests.
 
 ## Security
 
@@ -141,7 +141,6 @@ wildcard certificate, deployed with `sudo ovhost deploy play`.
 ```
 server/play/store.js         titles, achievements, boards, scores, unlocks, adoption
 server/play/account-data.js  account export and deletion (ADR-033)
-server/play/subject-merge.js account merges (ADR-029)
 server/http/api.js           /api/v1
 server/http/moved.js         the old page addresses, 301 to OpenVibe.Games
 server/http/discovery.js     robots.txt and llms.txt (sitemap.xml and llms-full.txt redirect to Games)

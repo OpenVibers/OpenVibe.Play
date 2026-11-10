@@ -20,7 +20,7 @@
     "Titles registered and updated by their own principal (play.title.manage); a definition left out is retired, never deleted; a board never changes kind",
     "Score posts to a board, idempotent by ref (up to 100 entries), and unlocks that answer the new ones (play.result.write)",
     "Guest adoption: a guest's unlocks and scores become the person's when they sign in",
-    "Account merges (network.subject.merged): the folded account's unlocks, scores and saves become the survivor's in every title",
+    "",
     "Cloud saves: up to 8 versioned slots per player per title (a stale write is refused), listed and deleted by the person at /me/saves",
     "Boards: each player's best, total or fastest time (milliseconds, ascending), this week (from Monday UTC) or all time, 25 a page, names and scores only",
     "Pages: home (every game, this week's leaders), a title, a board, your achievements, the API docs, /updates",
@@ -42,7 +42,7 @@
     "leaderboards (best, sum, time; week, all time)",
     "idempotent results",
     "guest adoption",
-    "account merges",
+
     "cloud saves",
     "account export and deletion"
   ],
