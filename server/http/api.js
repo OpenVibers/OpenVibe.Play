@@ -9,6 +9,7 @@
  *   GET  /titles/:title/boards/:board?period=&page=       public             a leaderboard: rank, name, score (never a player id)
  *   GET  /people/:subject/achievements                    public             a person's unlocks across every title (their profile:
  *                                                                              OpenVibe.Network's /@name and any site's showcase)
+ *   GET  /achievements/feed                               public             recent person unlocks, cursor paginated
  *   GET  /me/achievements                                 a person           their own unlocks across titles
  *   PUT  /titles/:title                                   play.title.manage  register or update a title the caller manages
  *   DELETE /titles/:title                                 play.title.manage  delete a sandbox title the caller manages (204)
@@ -63,6 +64,27 @@ function createApi(ctx) {
     r.get('/titles/:title/boards/:board', reads, wrap(async (req, res) => {
         const page = req.query.page === undefined ? 1 : Number(req.query.page);
         return res.json(await play.board(req.params.title, req.params.board, { period: String(req.query.period || 'all'), page }));
+    }));
+
+    r.get('/achievements/feed', reads, wrap(async (req, res) => {
+        const limit = req.query.limit === undefined ? 50 : Number(req.query.limit);
+        if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new PlayError(400, 'play.bad_limit', 'limit is 1 to 100');
+        let before = null;
+        if (req.query.cursor !== undefined) {
+            const encoded = String(req.query.cursor);
+            try {
+                if (!/^[A-Za-z0-9_-]{1,500}$/.test(encoded)) throw new Error('bad cursor');
+                const raw = Buffer.from(encoded, 'base64url');
+                if (raw.toString('base64url') !== encoded) throw new Error('bad cursor');
+                before = JSON.parse(raw.toString('utf8'));
+                if (!Array.isArray(before) || before.length !== 4 || !Number.isSafeInteger(before[0]) || before[0] < 0
+                    || !/^[a-z0-9-]{2,40}$/.test(before[1]) || !/^[a-z0-9_-]{1,64}$/.test(before[2])
+                    || !/^usr_[0-9A-HJKMNP-TV-Z]{26}$/.test(before[3])) throw new Error('bad cursor');
+            } catch { throw new PlayError(400, 'play.bad_cursor', 'invalid feed cursor'); }
+        }
+        const out = await play.achievementFeed({ before, limit });
+        res.set('Cache-Control', 'public, max-age=60');
+        return res.json({ items: out.items, next: out.next ? Buffer.from(JSON.stringify(out.next)).toString('base64url') : null });
     }));
 
     // A person's unlocks, for their public profile (Steam-style: what you earned shows wherever you are). Only people
