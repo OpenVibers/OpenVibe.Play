@@ -162,7 +162,7 @@ async function createApp(opts = {}) {
     // Public reads from any site: the titles, their leaderboards and a person's achievements answer every origin,
     // without credentials (a game's own page draws its board with them; any site shows a profile's showcase). Everything else keeps the same-site resource policy and no CORS. A preflight
     // is answered here.
-    const PUBLIC_READ = /^\/(?:ping|titles(?:\/[^/]+(?:\/boards\/[^/]+)?)?|people\/[^/]+\/achievements)$/;
+    const PUBLIC_READ = /^\/(?:ping|titles(?:\/[^/]+(?:\/boards\/[^/]+)?)?|people\/[^/]+\/achievements|achievements\/feed)$/;
     app.use('/api/v1', (req, res, next) => {
         if (!PUBLIC_READ.test(req.path) || !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
         res.setHeader('Access-Control-Allow-Origin', '*');

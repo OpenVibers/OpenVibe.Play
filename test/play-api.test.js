@@ -142,6 +142,23 @@ const DAY = 86_400_000;
             assert.strictEqual((await t.get('/api/v1/people/not-a-subject/achievements')).status, 404);
         });
 
+        await check('the public achievement feed pages across people and excludes guests', async () => {
+            const guest = 'guest:feedguest123';
+            await t.get('/api/v1/titles/salvage-rush/unlocks', { ...games, json: { player: guest, achievements: ['first-haul'] } });
+            const first = await t.get('/api/v1/achievements/feed?limit=1', { headers: { Origin: 'https://openvibe.community' } });
+            assert.strictEqual(first.status, 200, first.text);
+            assert.strictEqual(first.headers.get('access-control-allow-origin'), '*');
+            assert.strictEqual(first.json().items.length, 1);
+            assert.ok(first.json().items[0].player.startsWith('usr_'));
+            const second = await t.get(`/api/v1/achievements/feed?limit=1&cursor=${encodeURIComponent(first.json().next)}`);
+            assert.strictEqual(second.status, 200, second.text);
+            assert.notDeepStrictEqual(second.json().items[0], first.json().items[0]);
+            const full = (await t.get('/api/v1/achievements/feed?limit=100')).json();
+            assert.ok(full.items.length >= 3);
+            assert.ok(full.items.every((i) => i.player.startsWith('usr_') && i.title === 'salvage-rush'));
+            assert.strictEqual((await t.get('/api/v1/achievements/feed?cursor=bad')).json().code, 'play.bad_cursor');
+        });
+
         await check('the player pages moved to OpenVibe.Games; llms.txt says where and keeps the API links', async () => {
             for (const [from, to] of [
                 ['/', 'https://openvibe.games/achievements'],

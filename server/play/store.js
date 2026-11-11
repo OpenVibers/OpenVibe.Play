@@ -300,6 +300,21 @@ function createPlay({ s }) {
         return [...by.values()];
     }
 
+    /** Public person unlocks across every production title, newest first. Guest and sandbox rows stay private. */
+    async function achievementFeed({ before = null, limit = 50 } = {}) {
+        const rows = await db.many(`SELECT u.player, u.title_id, t.name AS title_name, u.achievement_id, a.name, a.description, u.unlocked_at
+            FROM play_unlocks u JOIN play_titles t ON t.id = u.title_id
+            JOIN play_achievements a ON a.title_id = u.title_id AND a.id = u.achievement_id
+            WHERE u.player ~ '^usr_[0-9A-HJKMNP-TV-Z]{26}$' AND t.id NOT LIKE 'sandbox-%'
+              AND ($1::bigint IS NULL OR (u.unlocked_at, u.title_id, u.achievement_id, u.player) < ($1::bigint, $2::text, $3::text, $4::text))
+            ORDER BY u.unlocked_at DESC, u.title_id DESC, u.achievement_id DESC, u.player DESC LIMIT $5`,
+        [before ? before[0] : null, before ? before[1] : null, before ? before[2] : null, before ? before[3] : null, limit + 1]);
+        const next = rows.length > limit ? rows[limit - 1] : null;
+        return { items: rows.slice(0, limit).map((r) => ({ player: r.player, title: r.title_id, title_name: r.title_name,
+            id: r.achievement_id, name: r.name, description: r.description, unlocked_at: new Date(Number(r.unlocked_at)).toISOString() })),
+        next: next ? [Number(next.unlocked_at), next.title_id, next.achievement_id, next.player] : null };
+    }
+
     // ── cloud saves ──
     const slotOf = (v) => { if (!SLOT_RE.test(String(v || ''))) fail(400, 'play.bad_slot', 'a slot is 1 to 32 of a-z 0-9 _ - (starting with a letter or digit)'); return String(v); };
     const saveView = (r, withData) => ({ slot: r.slot, version: Number(r.version), size: Number(r.size), created_at: new Date(Number(r.created_at)).toISOString(), updated_at: new Date(Number(r.updated_at)).toISOString(), ...(withData ? { data: r.data } : {}) });
@@ -353,7 +368,7 @@ function createPlay({ s }) {
         return (await db.exec('DELETE FROM play_saves WHERE title_id = $1 AND player = $2 AND slot = $3', [titleId, player(person), slotOf(slot)])) > 0;
     }
 
-    return { define, removeSandbox, recordScores, unlock, adopt, board, title, titles, playerAchievements, ownTitle,
+    return { define, removeSandbox, recordScores, unlock, adopt, board, title, titles, playerAchievements, achievementFeed, ownTitle,
         putSave, getSave, listSaves, deleteSave, mySaves, deleteMySave };
 }
 
