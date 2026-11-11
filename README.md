@@ -25,13 +25,11 @@ its boards. The rules of each game stay in the game; Play keeps the record and a
   scores mean: `"ms"` for `time`, `"points"` for the others.
 - **Players** are people (`usr_…`) or guests a game names (`guest:<opaque>`). When a guest signs in, the game adopts
   them and their unlocks and scores become the person's.
-  the folded account's unlocks and scores become the survivor's in every title.
 - **Cloud saves** (`migrations/0004_saves.sql`): a player's progress follows them to any device. Up to 8 slots per
   player per title, each any JSON value of at most 64 KB, versioned: a write names the version it read and a stale one
   is refused (409 `play.save_conflict`). The title's own token writes (`play.result.write`) and reads
   (`play.player.read`); a person lists and deletes their own at `/me/saves` and sees them on /me. A guest's slots move
-  to the person on adoption and a folded account's on a merge (the newer save wins a clash); they are in the account
-  export and erased with the account.
+  to the person on adoption (the newer save wins a clash); they are in the account export and erased with the account.
 - **Idempotent writes.** A round's scores carry a `ref`; posting it again changes nothing. An unlock answers only the
   achievements that were new.
 - **Personal data.** Only people's rows are: they are in the person's account export and erased with their account
@@ -49,8 +47,7 @@ game, to the player's account page and to any page that wants a board.
 ## Owns
 
 - Titles, their achievement definitions and their boards (`play_titles`, `play_achievements`, `play_boards`).
-- Unlocks, scores and cloud saves per player (`play_unlocks`, `play_scores`, `play_saves`), guest adoption, and the merges applied
-  (`play_subject_merges`).
+- Unlocks, scores and cloud saves per player (`play_unlocks`, `play_scores`, `play_saves`) and guest adoption.
 - The `/api/v1` read and write API. The player pages now live on OpenVibe.Games (achievements, leaderboards, developers); every old page at play.openvibe.network answers 301 to its counterpart there, and the API stays here.
 - Request telemetry (`telemetry_samples`, `0003_telemetry.sql`): each HTTP request aggregated by route template, method, status class,
   never by raw URL; `/shared`, static assets, health, readiness and `/metrics` are not counted. `server/app.js` builds the collector,
@@ -144,7 +141,7 @@ server/play/account-data.js  account export and deletion (ADR-033)
 server/http/api.js           /api/v1
 server/http/moved.js         the old page addresses, 301 to OpenVibe.Games
 server/http/discovery.js     robots.txt and llms.txt (sitemap.xml and llms-full.txt redirect to Games)
-migrations/                  the schema (0001 the store, 0002 the merges applied)
+migrations/                  the schema (0001 the store, 0002 the retired merges table)
 ```
 
 ## License
