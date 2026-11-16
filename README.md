@@ -147,7 +147,3 @@ migrations/                  the schema (0001 the store, 0002 the retired merges
 ## License
 
 AGPL-3.0. Part of the [OpenVibe network](https://openvibe.network).
-
-<!-- versions:start -->
-- openvibe-contracts: v0.419.0
-<!-- versions:end -->
